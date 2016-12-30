@@ -1,7 +1,6 @@
 package iris
 
 import (
-	"bytes"
 	"crypto/tls"
 	"log"
 	"net"
@@ -16,8 +15,6 @@ import (
 	"github.com/geekypanda/httpcache"
 	"github.com/iris-contrib/letsencrypt"
 	"github.com/kataras/go-errors"
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -45,28 +42,6 @@ const (
 var (
 	// AllMethods "GET", "POST", "PUT", "DELETE", "CONNECT", "HEAD", "PATCH", "OPTIONS", "TRACE"
 	AllMethods = [...]string{MethodGet, MethodPost, MethodPut, MethodDelete, MethodConnect, MethodHead, MethodPatch, MethodOptions, MethodTrace}
-
-	/* methods as []byte, these are really used by iris */
-
-	// MethodGetBytes "GET"
-	MethodGetBytes = []byte(MethodGet)
-	// MethodPostBytes "POST"
-	MethodPostBytes = []byte(MethodPost)
-	// MethodPutBytes "PUT"
-	MethodPutBytes = []byte(MethodPut)
-	// MethodDeleteBytes "DELETE"
-	MethodDeleteBytes = []byte(MethodDelete)
-	// MethodConnectBytes "CONNECT"
-	MethodConnectBytes = []byte(MethodConnect)
-	// MethodHeadBytes "HEAD"
-	MethodHeadBytes = []byte(MethodHead)
-	// MethodPatchBytes "PATCH"
-	MethodPatchBytes = []byte(MethodPatch)
-	// MethodOptionsBytes "OPTIONS"
-	MethodOptionsBytes = []byte(MethodOptions)
-	// MethodTraceBytes "TRACE"
-	MethodTraceBytes = []byte(MethodTrace)
-	/* */
 )
 
 const (
@@ -226,7 +201,7 @@ var errHandler = errors.New("Passed argument is not func(*Context) neither an ob
 type (
 	// Handler the main Iris Handler interface.
 	Handler interface {
-		Serve(ctx *Context)
+		Serve(ctx *Context) // iris-specific
 	}
 
 	// HandlerFunc type is an adapter to allow the use of
@@ -246,38 +221,30 @@ func (h HandlerFunc) Serve(ctx *Context) {
 	h(ctx)
 }
 
-// ToHandler converts an http.Handler or http.HandlerFunc to an iris.Handler
-func ToHandler(handler interface{}) Handler {
-	//this is not the best way to do it, but I dont have any options right now.
-	switch handler.(type) {
-	case Handler:
-		//it's already an iris handler
-		return handler.(Handler)
-	case http.Handler:
-		//it's http.Handler
-		h := fasthttpadaptor.NewFastHTTPHandlerFunc(handler.(http.Handler).ServeHTTP)
+// ToNativeHandler converts an iris handler to http.Handler
+func ToNativeHandler(station *Framework, h Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := station.AcquireCtx(w, r)
+		h.Serve(ctx)
+		station.ReleaseCtx(ctx)
+	})
+}
 
-		return ToHandlerFastHTTP(h)
-	case func(http.ResponseWriter, *http.Request):
-		//it's http.HandlerFunc
-		h := fasthttpadaptor.NewFastHTTPHandlerFunc(handler.(func(http.ResponseWriter, *http.Request)))
-		return ToHandlerFastHTTP(h)
-	default:
-		panic(errHandler.Format(handler, handler))
+// ToHandler converts an http.Handler to iris.Handler(Func)
+func ToHandler(h http.Handler) HandlerFunc {
+	return func(ctx *Context) {
+		h.ServeHTTP(ctx.ResponseWriter, ctx.Request)
 	}
 }
 
-// ToHandlerFunc converts an http.Handler or http.HandlerFunc to an iris.HandlerFunc
-func ToHandlerFunc(handler interface{}) HandlerFunc {
-	return ToHandler(handler).Serve
-}
-
-// ToHandlerFastHTTP converts an fasthttp.RequestHandler to an iris.Handler
-func ToHandlerFastHTTP(h fasthttp.RequestHandler) Handler {
-	return HandlerFunc((func(ctx *Context) {
-		h(ctx.RequestCtx)
-	}))
-}
+/* no, because on chain this will break the temp values, better to add a different function for this:
+// Serve implements the Handler, the http.Handler version of it,
+// in order to be automatically compatible without any user code
+func (h HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := AcquireCtx(w, r) // acquire and release the context from the default context pools, that's totally safe.
+	h.Serve(ctx)
+	ReleaseCtx(ctx)
+}*/
 
 // convertToHandlers just make []HandlerFunc to []Handler, although HandlerFunc and Handler are the same
 // we need this on some cases we explicit want a interface Handler, it is useless for users.
@@ -700,24 +667,24 @@ func (e *muxEntry) precedenceTo(index int) int {
 // it seems useless but I prefer to keep the cached handler on its own memory stack,
 // reason:  no clojures hell in the Cache function
 type cachedMuxEntry struct {
-	cachedHandler fasthttp.RequestHandler
+	cachedHandler http.Handler
 }
 
-func newCachedMuxEntry(f *Framework, bodyHandler HandlerFunc, expiration time.Duration) *cachedMuxEntry {
-	fhandler := func(reqCtx *fasthttp.RequestCtx) {
-		ctx := f.AcquireCtx(reqCtx)
+func newCachedMuxEntry(s *Framework, bodyHandler HandlerFunc, expiration time.Duration) *cachedMuxEntry {
+	httphandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := s.AcquireCtx(w, r)
 		bodyHandler.Serve(ctx)
-		f.ReleaseCtx(ctx)
-	}
+		s.ReleaseCtx(ctx)
+	})
 
-	cachedHandler := httpcache.CacheFasthttpFunc(fhandler, expiration)
+	cachedHandler := httpcache.Cache(httphandler, expiration)
 	return &cachedMuxEntry{
 		cachedHandler: cachedHandler,
 	}
 }
 
 func (c *cachedMuxEntry) Serve(ctx *Context) {
-	c.cachedHandler(ctx.RequestCtx)
+	c.cachedHandler.ServeHTTP(ctx.ResponseWriter, ctx.Request)
 }
 
 type (
@@ -743,8 +710,7 @@ type (
 		// if no name given then it's the subdomain+path
 		name           string
 		subdomain      string
-		method         []byte
-		methodStr      string
+		method         string
 		path           string
 		middleware     Middleware
 		formattedPath  string
@@ -767,8 +733,8 @@ func (s bySubdomain) Less(i, j int) bool {
 
 var _ Route = &route{}
 
-func newRoute(method []byte, subdomain string, path string, middleware Middleware) *route {
-	r := &route{name: path + subdomain, method: method, methodStr: string(method), subdomain: subdomain, path: path, middleware: middleware}
+func newRoute(method string, subdomain string, path string, middleware Middleware) *route {
+	r := &route{name: path + subdomain, method: method, subdomain: subdomain, path: path, middleware: middleware}
 	r.formatPath()
 	return r
 }
@@ -816,10 +782,7 @@ func (r route) Subdomain() string {
 }
 
 func (r route) Method() string {
-	if r.methodStr == "" {
-		r.methodStr = string(r.method)
-	}
-	return r.methodStr
+	return r.method
 }
 
 func (r route) Path() string {
@@ -865,7 +828,7 @@ const (
 
 type (
 	muxTree struct {
-		method []byte
+		method string
 		// subdomain is empty for default-hostname routes,
 		// ex: mysubdomain.
 		subdomain string
@@ -886,9 +849,6 @@ type (
 		hostname string
 		// if any of the trees contains not empty subdomain
 		hosts bool
-		// if false then searching by unescaped path
-		// defaults to true
-		escapePath bool
 		// if false then the /something it's not the same as /something/
 		// defaults to true
 		correctPath bool
@@ -904,7 +864,6 @@ func newServeMux(logger *log.Logger) *serveMux {
 		lookups:              make([]*route, 0),
 		errorHandlers:        make(map[int]Handler, 0),
 		hostname:             DefaultServerHostname, // these are changing when the server is up
-		escapePath:           !DefaultDisablePathEscape,
 		correctPath:          !DefaultDisablePathCorrection,
 		fireMethodNotAllowed: false,
 		logger:               logger,
@@ -915,10 +874,6 @@ func newServeMux(logger *log.Logger) *serveMux {
 
 func (mux *serveMux) setHostname(h string) {
 	mux.hostname = h
-}
-
-func (mux *serveMux) setEscapePath(b bool) {
-	mux.escapePath = b
 }
 
 func (mux *serveMux) setCorrectPath(b bool) {
@@ -948,7 +903,7 @@ func (mux *serveMux) fireError(statusCode int, ctx *Context) {
 	errHandler := mux.errorHandlers[statusCode]
 	if errHandler == nil {
 		errHandler = HandlerFunc(func(ctx *Context) {
-			ctx.ResetBody()
+			ctx.ResponseWriter.Reset()
 			ctx.SetStatusCode(statusCode)
 			ctx.SetBodyString(statusText[statusCode])
 		})
@@ -959,17 +914,17 @@ func (mux *serveMux) fireError(statusCode int, ctx *Context) {
 	errHandler.Serve(ctx)
 }
 
-func (mux *serveMux) getTree(method []byte, subdomain string) *muxTree {
+func (mux *serveMux) getTree(method string, subdomain string) *muxTree {
 	for i := range mux.garden {
 		t := mux.garden[i]
-		if bytes.Equal(t.method, method) && t.subdomain == subdomain {
+		if t.method == method && t.subdomain == subdomain {
 			return t
 		}
 	}
 	return nil
 }
 
-func (mux *serveMux) register(method []byte, subdomain string, path string, middleware Middleware) *route {
+func (mux *serveMux) register(method string, subdomain string, path string, middleware Middleware) *route {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
@@ -990,7 +945,7 @@ func (mux *serveMux) register(method []byte, subdomain string, path string, midd
 
 // build collects all routes info and adds them to the registry in order to be served from the request handler
 // this happens once when server is setting the mux's handler.
-func (mux *serveMux) build() (getRequestPath func(*fasthttp.RequestCtx) string, methodEqual func([]byte, []byte) bool) {
+func (mux *serveMux) build() (methodEqual func(string, string) bool) {
 
 	sort.Sort(bySubdomain(mux.lookups))
 
@@ -1014,26 +969,17 @@ func (mux *serveMux) build() (getRequestPath func(*fasthttp.RequestCtx) string, 
 		}
 	}
 
-	// optimize this once once, we could do that: context.RequestPath(mux.escapePath), but we lose some nanoseconds on if :)
-	getRequestPath = func(reqCtx *fasthttp.RequestCtx) string {
-		return string(reqCtx.Path())
-	}
-
-	if !mux.escapePath {
-		getRequestPath = func(reqCtx *fasthttp.RequestCtx) string { return string(reqCtx.RequestURI()) }
-	}
-
-	methodEqual = func(reqMethod []byte, treeMethod []byte) bool {
-		return bytes.Equal(reqMethod, treeMethod)
+	methodEqual = func(reqMethod string, treeMethod string) bool {
+		return reqMethod == treeMethod
 	}
 	// check for cors conflicts FIRST in order to put them in OPTIONS tree also
 	for i := range mux.lookups {
 		r := mux.lookups[i]
 		if r.hasCors() {
 			// cors middleware is updated also, ref: https://github.com/kataras/iris/issues/461
-			methodEqual = func(reqMethod []byte, treeMethod []byte) bool {
+			methodEqual = func(reqMethod string, treeMethod string) bool {
 				// preflights
-				return bytes.Equal(reqMethod, MethodOptionsBytes) || bytes.Equal(reqMethod, treeMethod)
+				return reqMethod == MethodOptions || reqMethod == treeMethod
 			}
 			break
 		}
@@ -1072,18 +1018,19 @@ func HTMLEscape(s string) string {
 func (mux *serveMux) BuildHandler() HandlerFunc {
 
 	// initialize the router once
-	getRequestPath, methodEqual := mux.build()
+	methodEqual := mux.build()
 
 	return func(context *Context) {
-		routePath := getRequestPath(context.RequestCtx)
+		routePath := context.Path()
 		for i := range mux.garden {
 			tree := mux.garden[i]
-			if !methodEqual(context.Method(), tree.method) {
+			if !methodEqual(context.Request.Method, tree.method) {
 				continue
 			}
 
 			if mux.hosts && tree.subdomain != "" {
-				// context.VirtualHost() is a slow method because it makes string.Replaces but user can understand that if subdomain then server will have some nano/or/milleseconds performance cost
+				// context.VirtualHost() is a slow method because it makes
+				// string.Replaces but user can understand that if subdomain then server will have some nano/or/milleseconds performance cost
 				requestHost := context.VirtualHostname()
 				if requestHost != mux.hostname {
 					//println(requestHost + " != " + mux.hostname)
@@ -1111,7 +1058,7 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 				//ctx.Request.Header.SetUserAgentBytes(DefaultUserAgent)
 				context.Do()
 				return
-			} else if mustRedirect && mux.correctPath && !bytes.Equal(context.Method(), MethodConnectBytes) {
+			} else if mustRedirect && mux.correctPath && context.Method() == MethodConnect {
 
 				reqPath := routePath
 				pathLen := len(reqPath)
@@ -1123,14 +1070,13 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 						//it has path prefix, it doesn't ends with / and it hasn't be found, then just add the slash
 						reqPath = reqPath + "/"
 					}
-
-					context.Request.URI().SetPath(reqPath)
-					urlToRedirect := string(context.Request.RequestURI())
+					context.Request.URL.Path = reqPath
+					urlToRedirect := context.Request.RequestURI
 
 					statisForRedirect := StatusMovedPermanently //	StatusMovedPermanently, this document is obselte, clients caches this.
-					if bytes.Equal(tree.method, MethodPostBytes) ||
-						bytes.Equal(tree.method, MethodPutBytes) ||
-						bytes.Equal(tree.method, MethodDeleteBytes) {
+					if tree.method == MethodPost ||
+						tree.method == MethodPut ||
+						tree.method == MethodDelete {
 						statisForRedirect = StatusTemporaryRedirect //	To maintain POST data
 					}
 
@@ -1138,7 +1084,7 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 					// RFC2616 recommends that a short note "SHOULD" be included in the
 					// response because older user agents may not understand 301/307.
 					// Shouldn't send the response for POST or HEAD; that leaves GET.
-					if bytes.Equal(tree.method, MethodGetBytes) {
+					if tree.method == MethodGet {
 						note := "<a href=\"" + HTMLEscape(urlToRedirect) + "\">Moved Permanently</a>.\n"
 						context.Write(note)
 					}
@@ -1409,32 +1355,46 @@ func ParseScheme(domain string) string {
 }
 
 // ProxyHandler returns a new fasthttp handler which works as 'proxy', maybe doesn't suits you look its code before using that in production
-var ProxyHandler = func(proxyAddr string, redirectSchemeAndHost string) fasthttp.RequestHandler {
-	return func(reqCtx *fasthttp.RequestCtx) {
-		// override the handler and redirect all requests to this addr
-		redirectTo := redirectSchemeAndHost
-		fakehost := string(reqCtx.Request.Host())
-		path := string(reqCtx.Path())
-		if strings.Count(fakehost, ".") >= 3 { // propably a subdomain, pure check but doesn't matters don't worry
-			if sufIdx := strings.LastIndexByte(fakehost, '.'); sufIdx > 0 {
-				// check if the last part is a number instead of .com/.gr...
-				// if it's number then it's propably is 0.0.0.0 or 127.0.0.1... so it shouldn' use  subdomain
-				if _, err := strconv.Atoi(fakehost[sufIdx+1:]); err != nil {
-					// it's not number then process the try to parse the subdomain
-					redirectScheme := ParseScheme(redirectSchemeAndHost)
-					realHost := strings.Replace(redirectSchemeAndHost, redirectScheme, "", 1)
-					redirectHost := strings.Replace(fakehost, fakehost, realHost, 1)
-					redirectTo = redirectScheme + redirectHost + path
-					reqCtx.Redirect(redirectTo, StatusMovedPermanently)
-					return
+var ProxyHandler = func(redirectSchemeAndHost string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		/*
+			// override the handler and redirect all requests to this addr
+			redirectTo := redirectSchemeAndHost
+			fakehost := r.URL.Host
+			path := r.URL.EscapedPath()
+			if strings.Count(fakehost, ".") >= 3 { // propably a subdomain, pure check but doesn't matters don't worry
+				if sufIdx := strings.LastIndexByte(fakehost, '.'); sufIdx > 0 {
+					// check if the last part is a number instead of .com/.gr...
+					// if it's number then it's propably is 0.0.0.0 or 127.0.0.1... so it shouldn' use  subdomain
+					if _, err := strconv.Atoi(fakehost[sufIdx+1:]); err != nil {
+						// it's not number then process the try to parse the subdomain
+						redirectScheme := ParseScheme(redirectSchemeAndHost)
+						realHost := strings.Replace(redirectSchemeAndHost, redirectScheme, "", 1)
+						redirectHost := strings.Replace(fakehost, fakehost, realHost, 1)
+						redirectTo = redirectScheme + redirectHost + path
+						http.Redirect(w, r, redirectTo, StatusMovedPermanently)
+						return
+					}
 				}
 			}
-		}
-		if path != "/" {
-			redirectTo += path
-		}
+			if path != "/" {
+				redirectTo += path
+			}
+			if redirectTo == r.URL.String() {
+				println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectTo)
+				return
+			}
 
-		reqCtx.Redirect(redirectTo, StatusMovedPermanently)
+			http.Redirect(w, r, redirectTo, StatusMovedPermanently)
+		*/
+		if redirectSchemeAndHost+r.RequestURI == r.URL.String() {
+			println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectSchemeAndHost + r.RequestURI)
+			return
+		}
+		urlToRedirect := redirectSchemeAndHost + r.RequestURI
+
+		w.Header().Set("Location", urlToRedirect)
+		w.WriteHeader(StatusMovedPermanently)
 	}
 }
 
@@ -1447,11 +1407,13 @@ func Proxy(proxyAddr string, redirectSchemeAndHost string) func() error {
 	proxyAddr = ParseHost(proxyAddr)
 
 	// override the handler and redirect all requests to this addr
-	h := ProxyHandler(proxyAddr, redirectSchemeAndHost)
+	h := ProxyHandler(redirectSchemeAndHost)
 	prx := New(OptionDisableBanner(true))
 	prx.Router = h
 
 	go prx.Listen(proxyAddr)
-
-	return prx.Close
+	if ok := <-prx.Available; !ok {
+		prx.Logger.Panic("Unexpected error: proxy server cannot start, please report this as bug!!")
+	}
+	return func() error { return prx.Close() }
 }
