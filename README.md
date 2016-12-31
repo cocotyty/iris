@@ -20,7 +20,7 @@
 <br/>
 
 
-<a href="https://github.com/kataras/iris/releases"><img src="https://img.shields.io/badge/%20version%20-%205.1.3%20-blue.svg?style=flat-square" alt="Releases"></a>
+<a href="https://github.com/kataras/iris/releases"><img src="https://img.shields.io/badge/%20version%20-%206.0.0%20-blue.svg?style=flat-square" alt="Releases"></a>
 
 <a href="https://github.com/iris-contrib/examples"><img src="https://img.shields.io/badge/%20examples-repository-3362c2.svg?style=flat-square" alt="Examples"></a>
 
@@ -190,7 +190,7 @@ app := iris.New()
 app.Listen(....)
 
 // New with configuration struct
-app := iris.New(iris.Configuration{ DisablePathEscape: true})
+app := iris.New(iris.Configuration{ IsDevelopmnt: true})
 
 app.Listen(...)
 
@@ -198,7 +198,9 @@ app.Listen(...)
 iris.Listen(...)
 
 // Default station with custom configuration
-iris.Config.DisablePathEscape = true
+// view the whole configuration at: ./configuration.go
+iris.Config.IsDevelopment = true
+iris.Config.Charset = "UTF-8"
 
 iris.Listen(...)
 ```
@@ -270,8 +272,8 @@ func getProduct(ctx *iris.Context){
 
 ```go
 func details(ctx *iris.Context){
-  color:= ctx.URLParam("color")
-  weight:= ctx.URLParamInt("weight")
+  color := ctx.URLParam("color")
+  weight,_ := ctx.URLParamInt("weight")
 }
 
 ```
@@ -289,8 +291,8 @@ email | kataras2006@homail.com
 ```go
 func save(ctx *iris.Context) {
 	// Get name and email
-	name := ctx.FormValueString("name")
-	email := ctx.FormValueString("email")
+	name := ctx.FormValue("name")
+	email := ctx.FormValue("email")
 }
 ```
 
@@ -307,8 +309,8 @@ avatar | avatar
 ```go
 func save(ctx *iris.Context)  {
 	// Get name and email
-	name := ctx.FormValueString("name")
-	email := ctx.FormValueString("email")
+	name := ctx.FormValue("name")
+	email := ctx.FormValue("email")
 	// Get avatar
 	avatar, err := ctx.FormFile("avatar")
 	if err != nil {
@@ -394,13 +396,13 @@ import (
 func main() {
 
 	iris.OnError(iris.StatusInternalServerError, func(ctx *iris.Context) {
-        ctx.Write("CUSTOM 500 INTERNAL SERVER ERROR PAGE")
+    ctx.Writef("CUSTOM 500 INTERNAL SERVER ERROR PAGE")
 		// or ctx.Render, ctx.HTML any render method you want
 		ctx.Log("http status: 500 happened!")
 	})
 
 	iris.OnError(iris.StatusNotFound, func(ctx *iris.Context) {
-		ctx.Write("CUSTOM 404 NOT FOUND ERROR PAGE")
+		ctx.Writef("CUSTOM 404 NOT FOUND ERROR PAGE")
 		ctx.Log("http status: 404 happened!")
 	})
 
@@ -673,7 +675,7 @@ The web application uses the session id as the key for retrieving the stored dat
 
 ```go
 iris.Get("/", func(ctx *iris.Context) {
-		ctx.Write("You should navigate to the /set, /get, /delete, /clear,/destroy instead")
+		ctx.Writef("You should navigate to the /set, /get, /delete, /clear,/destroy instead")
 	})
 
 	iris.Get("/set", func(ctx *iris.Context) {
@@ -682,7 +684,7 @@ iris.Get("/", func(ctx *iris.Context) {
 		ctx.Session().Set("name", "iris")
 
 		//test if setted here
-		ctx.Write("All ok session setted to: %s", ctx.Session().GetString("name"))
+		ctx.Writef("All ok session setted to: %s", ctx.Session().GetString("name"))
 	})
 
 	iris.Get("/get", func(ctx *iris.Context) {
@@ -690,7 +692,7 @@ iris.Get("/", func(ctx *iris.Context) {
 		// returns an empty string if the key was not found.
 		name := ctx.Session().GetString("name")
 
-		ctx.Write("The name on the /set was: %s", name)
+		ctx.Writef("The name on the /set was: %s", name)
 	})
 
 	iris.Get("/delete", func(ctx *iris.Context) {
@@ -707,7 +709,7 @@ iris.Get("/", func(ctx *iris.Context) {
 		// destroy/removes the entire session and cookie
 		ctx.SessionDestroy()
 		ctx.Log("You have to refresh the page to completely remove the session (on browsers), so the name should NOT be empty NOW, is it?\n ame: %s\n\nAlso check your cookies in your browser's cookies, should be no field for localhost/127.0.0.1 (or whatever you use)", ctx.Session().GetString("name"))
-		ctx.Write("You have to refresh the page to completely remove the session (on browsers), so the name should NOT be empty NOW, is it?\nName: %s\n\nAlso check your cookies in your browser's cookies, should be no field for localhost/127.0.0.1 (or whatever you use)", ctx.Session().GetString("name"))
+		ctx.Writef("You have to refresh the page to completely remove the session (on browsers), so the name should NOT be empty NOW, is it?\nName: %s\n\nAlso check your cookies in your browser's cookies, should be no field for localhost/127.0.0.1 (or whatever you use)", ctx.Session().GetString("name"))
 	})
 
 	iris.Listen(":8080")
@@ -920,16 +922,9 @@ I recommend writing your API tests using this new library, [httpexpect](https://
 Versioning
 ------------
 
-Current: **v5.1.3**
+Current: **v6.0.0**
 
-Stable: **[v4 LTS](https://github.com/kataras/iris/tree/4.0.0#versioning)**
-
-
-Todo
-------------
-
-- [ ] Server-side React render, as requested [here](https://github.com/kataras/iris/issues/503)
-- [x] [v5.1.0: (Request) Scoped Transactions](https://github.com/iris-contrib/examples/tree/master/transactions), simple and elegant.
+Stable: **[v5 LTS](https://github.com/kataras/iris/tree/5.0.0)**
 
 
 Iris is a **Community-Driven** Project, waiting for your suggestions and [feature requests](https://github.com/kataras/iris/issues?utf8=%E2%9C%93&q=label%3A%22feature%20request%22)!
@@ -953,7 +948,7 @@ If you are interested in contributing to the Iris project, please see the docume
 
 Depends on:
 
-- http protocol layer comes from [valyala/fasthttp](https://github.com/valyala/fasthttp), by Aliaksandr Valialkin.
+- http protocol layer comes from [net/http](https://github.com/golang/go/tree/master/src/net/http), by Go Authors.
 - rich and encoded responses support comes from [kataras/go-serializer](https://github.com/kataras/go-serializer/tree/0.0.4), by me.
 - template support comes from [kataras/go-template](https://github.com/kataras/go-template/tree/0.0.3), by me.
 - gzip support comes from [kataras/go-fs](https://github.com/kataras/go-fs/tree/0.0.5) and the super-fast compression library [klauspost/compress/gzip](https://github.com/klauspost/compress/tree/master/gzip), by me & Klaus Post.

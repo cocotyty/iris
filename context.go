@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net"
 	"os"
 	"path"
@@ -365,6 +366,20 @@ func (ctx *Context) FormValue(name string) string {
 	return strings.Join(valMulty, ",")
 }
 
+// PostValue returns a form's only-post value by its name
+// same as Request.PostFormValue
+func (ctx *Context) PostValue(name string) string {
+	return ctx.Request.PostFormValue(name)
+}
+
+// FormFile returns the first file for the provided form key.
+// FormFile calls ctx.Request.ParseMultipartForm and ParseForm if necessary.
+//
+// same as Request.FormFile
+func (ctx *Context) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	return ctx.Request.FormFile(key)
+}
+
 // Subdomain returns the subdomain (string) of this request, if any
 func (ctx *Context) Subdomain() (subdomain string) {
 	host := ctx.Host()
@@ -537,10 +552,17 @@ func (ctx *Context) ResetBody() {
 	ctx.ResponseWriter.ResetBody()
 }
 
-// Write formats according to a format specifier and writes to the response.
+// Write writes the contents to the response writer.
 //
 // Returns the number of bytes written and any write error encountered
-func (ctx *Context) Write(format string, a ...interface{}) (n int, err error) {
+func (ctx *Context) Write(contents []byte) (n int, err error) {
+	return ctx.ResponseWriter.Write(contents)
+}
+
+// Writef formats according to a format specifier and writes to the response.
+//
+// Returns the number of bytes written and any write error encountered
+func (ctx *Context) Writef(format string, a ...interface{}) (n int, err error) {
 	return fmt.Fprintf(ctx.ResponseWriter, format, a...)
 }
 

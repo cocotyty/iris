@@ -13,6 +13,7 @@ func main() {
         c.JSON(iris.StatusOK, iris.Map{
             "Name": "Iris",
             "Released":  "13 March 2016",
+						"Stars": "5883",
         })
     })
     iris.ListenLETSENCRYPT("mydomain.com")
@@ -27,9 +28,10 @@ import  "github.com/kataras/iris"
 func main() {
 	s1 := iris.New()
 	s1.Get("/hi_json", func(c *iris.Context) {
-		c.JSON(200, iris.Map{
+		c.JSON(iris.StatusOK, iris.Map{
 			"Name": "Iris",
 			"Released":  "13 March 2016",
+			"Stars": "5883",
 		})
 	})
 
@@ -47,9 +49,9 @@ func main() {
 For middleware, template engines, response engines, sessions, websockets, mails, subdomains,
 dynamic subdomains, routes, party of subdomains & routes, ssh and much more
 
-visit https://www.gitbook.com/book/kataras/iris/details
+visit https://docs.iris-go.com
 */
-package iris
+package iris // import "github.com/kataras/iris/iris"
 
 import (
 	"bytes"
@@ -79,7 +81,7 @@ const (
 	// IsLongTermSupport flag is true when the below version number is a long-term-support version
 	IsLongTermSupport = false
 	// Version is the current version number of the Iris web framework
-	Version = "5.1.3"
+	Version = "6.0.0"
 
 	banner = `         _____      _
         |_   _|    (_)

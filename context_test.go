@@ -111,7 +111,7 @@ func TestContextParams(t *testing.T) {
 	expectedParamsStr := "param1=myparam1,param2=myparam2,param3=myparam3afterstatic,anything=/andhere/anything/you/like"
 	iris.Get("/path/:param1/:param2/staticpath/:param3/*anything", func(ctx *iris.Context) {
 		paramsStr := ctx.ParamsSentence()
-		ctx.Write(paramsStr)
+		ctx.WriteString(paramsStr)
 	})
 
 	httptest.New(iris.Default, t).GET("/path/myparam1/myparam2/staticpath/myparam3afterstatic/andhere/anything/you/like").Expect().Status(iris.StatusOK).Body().Equal(expectedParamsStr)
@@ -135,11 +135,11 @@ func TestContextHostString(t *testing.T) {
 	iris.ResetDefault()
 	iris.Default.Config.VHost = "0.0.0.0:8080"
 	iris.Get("/", func(ctx *iris.Context) {
-		ctx.Write(ctx.Host())
+		ctx.WriteString(ctx.Host())
 	})
 
 	iris.Get("/wrong", func(ctx *iris.Context) {
-		ctx.Write(ctx.Host() + "w")
+		ctx.WriteString(ctx.Host() + "w")
 	})
 
 	e := httptest.New(iris.Default, t)
@@ -154,11 +154,11 @@ func TestContextVirtualHostName(t *testing.T) {
 	vhost := "mycustomvirtualname.com"
 	iris.Default.Config.VHost = vhost + ":8080"
 	iris.Get("/", func(ctx *iris.Context) {
-		ctx.Write(ctx.VirtualHostname())
+		ctx.WriteString(ctx.VirtualHostname())
 	})
 
 	iris.Get("/wrong", func(ctx *iris.Context) {
-		ctx.Write(ctx.VirtualHostname() + "w")
+		ctx.WriteString(ctx.VirtualHostname() + "w")
 	})
 
 	e := httptest.New(iris.Default, t)
@@ -172,7 +172,7 @@ func TestContextFormValueString(t *testing.T) {
 	k = "postkey"
 	v = "postvalue"
 	iris.Post("/", func(ctx *iris.Context) {
-		ctx.Write(k + "=" + ctx.FormValue(k))
+		ctx.WriteString(k + "=" + ctx.FormValue(k))
 	})
 	e := httptest.New(iris.Default, t)
 
@@ -185,7 +185,7 @@ func TestContextSubdomain(t *testing.T) {
 	//Default.Config.Tester.ListeningAddr = "mydomain.com:9999"
 	// Default.Config.Tester.ExplicitURL = true
 	iris.Party("mysubdomain.").Get("/mypath", func(ctx *iris.Context) {
-		ctx.Write(ctx.Subdomain())
+		ctx.WriteString(ctx.Subdomain())
 	})
 
 	e := httptest.New(iris.Default, t)
@@ -340,14 +340,14 @@ func TestContextReadForm(t *testing.T) {
 // TestContextRedirectTo tests the named route redirect action
 func TestContextRedirectTo(t *testing.T) {
 	iris.ResetDefault()
-	h := func(ctx *iris.Context) { ctx.Write(ctx.Path()) }
+	h := func(ctx *iris.Context) { ctx.WriteString(ctx.Path()) }
 	iris.Get("/mypath", h)("my-path")
 	iris.Get("/mypostpath", h)("my-post-path")
 	iris.Get("mypath/with/params/:param1/:param2", func(ctx *iris.Context) {
 		if l := ctx.ParamsLen(); l != 2 {
 			t.Fatalf("Strange error, expecting parameters to be two but we got: %d", l)
 		}
-		ctx.Write(ctx.Path())
+		ctx.WriteString(ctx.Path())
 	})("my-path-with-params")
 
 	iris.Get("/redirect/to/:routeName/*anyparams", func(ctx *iris.Context) {
@@ -426,7 +426,7 @@ func TestContextCookieSetGetRemove(t *testing.T) {
 	})
 
 	iris.Get("/get", func(ctx *iris.Context) {
-		ctx.Write(ctx.GetCookie(key)) // should return my value
+		ctx.WriteString(ctx.GetCookie(key)) // should return my value
 	})
 
 	iris.Get("/remove", func(ctx *iris.Context) {
@@ -438,7 +438,7 @@ func TestContextCookieSetGetRemove(t *testing.T) {
 		if cookieFound {
 			t.Fatalf("Cookie has been found, when it shouldn't!")
 		}
-		ctx.Write(ctx.GetCookie(key)) // should return ""
+		ctx.WriteString(ctx.GetCookie(key)) // should return ""
 	})
 
 	e := httptest.New(iris.Default, t)

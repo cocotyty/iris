@@ -4,7 +4,6 @@ package iris_test
 import (
 	"fmt"
 	"github.com/gavv/httpexpect"
-	//	"github.com/kataras/go-errors"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/httptest"
 	"io/ioutil"
@@ -12,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	//"sync/atomic"
 	"testing"
 	"time"
 )
@@ -195,7 +193,7 @@ func TestMultiRunningServers_v1_PROXY(t *testing.T) {
 	host := "localhost"
 	hostTLS := host + ":" + strconv.Itoa(getRandomNumber(1919, 2221))
 	api.Get("/", func(ctx *iris.Context) {
-		ctx.Write("Hello from %s", hostTLS)
+		ctx.Writef("Hello from %s", hostTLS)
 	})
 	// println("running main on: " + hostTLS)
 
@@ -228,7 +226,7 @@ func TestMultiRunningServers_v2(t *testing.T) {
 	srv2Host := domain + ":" + strconv.Itoa(getRandomNumber(7778, 8887))
 
 	api.Get("/", func(ctx *iris.Context) {
-		ctx.Write("Hello from %s", hostTLS)
+		ctx.Writef("Hello from %s", hostTLS)
 	})
 
 	defer listenTLS(api, hostTLS)()
@@ -451,7 +449,7 @@ func TestMuxDecodeURL(t *testing.T) {
 		url := ctx.ParamDecoded("url")
 
 		ctx.SetStatusCode(iris.StatusOK)
-		ctx.Write(url)
+		ctx.WriteString(url)
 	})
 
 	e := httptest.New(iris.Default, t)
@@ -498,11 +496,11 @@ func TestMuxCustomErrors(t *testing.T) {
 
 	// register the custom errors
 	iris.OnError(iris.StatusNotFound, func(ctx *iris.Context) {
-		ctx.Write("%s", notFoundMessage)
+		ctx.Writef("%s", notFoundMessage)
 	})
 
 	iris.OnError(iris.StatusInternalServerError, func(ctx *iris.Context) {
-		ctx.Write("%s", internalServerMessage)
+		ctx.Writef("%s", internalServerMessage)
 	})
 
 	// create httpexpect instance that will call fasthtpp.RequestHandler directly
@@ -522,27 +520,27 @@ type testUserAPI struct {
 
 // GET /users
 func (u testUserAPI) Get() {
-	u.Write("Get Users\n")
+	u.WriteString("Get Users\n")
 }
 
 // GET /users/:param1 which its value passed to the id argument
 func (u testUserAPI) GetBy(id string) { // id equals to u.Param("param1")
-	u.Write("Get By %s\n", id)
+	u.Writef("Get By %s\n", id)
 }
 
 // PUT /users
 func (u testUserAPI) Put() {
-	u.Write("Put, name: %s\n", u.FormValue("name"))
+	u.Writef("Put, name: %s\n", u.FormValue("name"))
 }
 
 // POST /users/:param1
 func (u testUserAPI) PostBy(id string) {
-	u.Write("Post By %s, name: %s\n", id, u.FormValue("name"))
+	u.Writef("Post By %s, name: %s\n", id, u.FormValue("name"))
 }
 
 // DELETE /users/:param1
 func (u testUserAPI) DeleteBy(id string) {
-	u.Write("Delete By %s\n", id)
+	u.Writef("Delete By %s\n", id)
 }
 
 func TestMuxAPI(t *testing.T) {
@@ -555,7 +553,7 @@ func TestMuxAPI(t *testing.T) {
 		ctx.Next()
 	}, func(ctx *iris.Context) {
 		if ctx.Get("user") == "username" {
-			ctx.Write(middlewareResponseText)
+			ctx.WriteString(middlewareResponseText)
 			ctx.Next()
 		} else {
 			ctx.SetStatusCode(iris.StatusUnauthorized)
@@ -641,11 +639,11 @@ func TestMuxFireMethodNotAllowed(t *testing.T) {
 	iris.ResetDefault()
 	iris.Default.Config.FireMethodNotAllowed = true
 	h := func(ctx *iris.Context) {
-		ctx.Write("%s", ctx.Request.Method)
+		ctx.WriteString(ctx.Method())
 	}
 
 	iris.Default.OnError(iris.StatusMethodNotAllowed, func(ctx *iris.Context) {
-		ctx.Write("Hello from my custom 405 page")
+		ctx.WriteString("Hello from my custom 405 page")
 	})
 
 	iris.Get("/mypath", h)

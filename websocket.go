@@ -25,6 +25,10 @@ type (
 		websocket.Server
 		station *Framework
 		once    sync.Once
+		// Config:
+		// if endpoint is not empty then this configuration is used instead of the station's
+		// useful when the user/dev wants more than one websocket server inside one iris instance.
+		Config WebsocketConfiguration
 	}
 )
 
@@ -38,7 +42,11 @@ func NewWebsocketServer(station *Framework) *WebsocketServer {
 // receives the websocket configuration and  the iris station
 // and returns the websocket server which can be attached to more than one iris station (if needed)
 func (ws *WebsocketServer) init() {
-	c := ws.station.Config.Websocket
+	if ws.Config.Endpoint == "" {
+		ws.Config = ws.station.Config.Websocket
+	}
+
+	c := ws.Config
 
 	if c.Endpoint == "" {
 		return

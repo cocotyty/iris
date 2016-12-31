@@ -2,6 +2,25 @@
 
 **How to upgrade**: remove your `$GOPATH/src/github.com/kataras` folder, open your command-line and execute this command: `go get -u github.com/kataras/iris/iris`.
 
+
+## v5/fasthttp -> 6.0.0/nethttp
+
+As I promised to the community and a lot others, HTTP/2 support on iris is happening, I tried to zero the needed changes you will have
+to make on your app if you used iris before. If you don't find something you used to use come here and check that conversional list:
+
+
+- `context.Write(string, ...string)` -> `context.Writef(string, ...string)` | Write now has this form: Write([]byte) (int,error). All other write methods didn't changed.
+
+- `context.GetFlash/SetFlash` -> `context.Session().GetFlash/GetFlashString/SetFlash/DeleteFlash/ClearFlashes/Flashes/HasFlash`
+
+- `context.FormValueString(string) -> context.FormValue(string)
+- `context.PathString()` -> context.Path()
+- `context.HostString()` -> context.Host()
+
+- `iris.Config.DisablePathEscape` is removed because now we have two methods to get a parameter `context.Param/ParamDecoded`.
+
+> NOTE: THIS IS NOT THE COMPLETE LIST YET, I have to fill some static files helpers before pushing the new version.
+
 ## 5.1.1 -> 5.1.3
 - **More on Transactions vol 3**: Recovery from any (unexpected error) panics inside `context.BeginTransaction` without loud, continue the execution as expected. Next version will have a little cleanup if I see that the transactions code is going very large or hard to understand the flow*
 

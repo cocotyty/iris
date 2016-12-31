@@ -1086,7 +1086,7 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 					// Shouldn't send the response for POST or HEAD; that leaves GET.
 					if tree.method == MethodGet {
 						note := "<a href=\"" + HTMLEscape(urlToRedirect) + "\">Moved Permanently</a>.\n"
-						context.Write(note)
+						context.WriteString(note)
 					}
 					return
 				}

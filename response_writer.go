@@ -42,7 +42,7 @@ type ResponseWriter struct {
 	// these three fields are setted on flushBody which runs only once on the end of the handler execution.
 	// this helps the performance on multi-write and keep tracks the body, status code and headers in order to run each transaction
 	// on its own
-	body       []byte      // keep track of the body in order to be resetable and useful inside custom transactions
+	chunks     []byte      // keep track of the body in order to be resetable and useful inside custom transactions
 	statusCode int         // the saved status code which will be used from the cache service
 	headers    http.Header // the saved headers
 }
@@ -84,23 +84,29 @@ func (w *ResponseWriter) StatusCode() int {
 // by all HTTP/2 clients. Handlers should read before writing if
 // possible to maximize compatibility.
 func (w *ResponseWriter) Write(contents []byte) (int, error) {
-	w.body = append(w.body, contents...)
-	return len(w.body), nil
+	w.chunks = append(w.chunks, contents...)
+	return len(w.chunks), nil
+}
+
+// Body returns the body tracked from the writer so far
+// do not use this for edit.
+func (w *ResponseWriter) Body() []byte {
+	return w.chunks
 }
 
 // SetBodyString overrides the body and sets it to a string value
 func (w *ResponseWriter) SetBodyString(s string) {
-	w.body = []byte(s)
+	w.chunks = []byte(s)
 }
 
 // SetBody overrides the body and sets it to a slice of bytes value
 func (w *ResponseWriter) SetBody(b []byte) {
-	w.body = b
+	w.chunks = b
 }
 
 // ResetBody resets the response body
 func (w *ResponseWriter) ResetBody() {
-	w.body = w.body[0:0]
+	w.chunks = w.chunks[0:0]
 }
 
 // ResetHeaders clears the temp headers
@@ -183,8 +189,8 @@ func (w *ResponseWriter) flushResponse() {
 		}
 	}
 
-	if len(w.body) > 0 {
-		w.ResponseWriter.Write(w.body)
+	if len(w.chunks) > 0 {
+		w.ResponseWriter.Write(w.chunks)
 	}
 
 }
@@ -214,7 +220,7 @@ func (w *ResponseWriter) clone() *ResponseWriter {
 	wc.ResponseWriter = w.ResponseWriter
 	wc.statusCode = w.statusCode
 	wc.headers = w.headers
-	wc.body = w.body[0:]
+	wc.chunks = w.chunks[0:]
 	wc.beforeFlush = w.beforeFlush
 	return wc
 }
@@ -239,8 +245,8 @@ func (w *ResponseWriter) writeTo(to *ResponseWriter) {
 	}
 
 	// append the body
-	if len(w.body) > 0 {
-		to.Write(w.body)
+	if len(w.chunks) > 0 {
+		to.Write(w.chunks)
 	}
 
 	if w.beforeFlush != nil {
