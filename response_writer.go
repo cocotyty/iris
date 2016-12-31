@@ -191,3 +191,25 @@ func (w *ResponseWriter) clone() *ResponseWriter {
 	wc.body = w.body
 	return wc
 }
+
+// writeTo writes a response writer (temp: status code, headers and body) to another response writer
+func (w *ResponseWriter) writeTo(to *ResponseWriter) {
+	// set the status code, failure status code are first class
+	if w.statusCode > to.statusCode {
+		to.statusCode = w.statusCode
+	}
+
+	// append the headers
+	for k, values := range w.headers {
+		for _, v := range values {
+			if to.headers.Get(v) == "" {
+				to.headers.Add(k, v)
+			}
+		}
+	}
+
+	// append the body
+	if len(w.body) > 0 {
+		to.Write(w.body)
+	}
+}
