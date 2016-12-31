@@ -180,3 +180,14 @@ func (w *ResponseWriter) Flush() {
 		fl.Flush()
 	}
 }
+
+// clone returns a clone of this response writer
+// it copies the header, status code and headers and returns a new ResponseWriter
+func (w *ResponseWriter) clone() *ResponseWriter {
+	wc := &ResponseWriter{}
+	wc.ResponseWriter = w.ResponseWriter
+	wc.statusCode = w.statusCode
+	wc.headers = w.headers
+	wc.body = w.body
+	return wc
+}
