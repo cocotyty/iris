@@ -154,7 +154,6 @@ var RequestTransactionScope = TransactionScopeFunc(func(maybeErr TransactionErrR
 				ctx.ResponseWriter.WriteHeader(maybeErr.StatusCode)
 				ctx.ResponseWriter.SetContentType(maybeErr.ContentType)
 			} else {
-
 				// else execute the registered user error and skip the next transactions and all normal flow,
 				ctx.EmitError(maybeErr.StatusCode)
 			}

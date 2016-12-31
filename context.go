@@ -1093,179 +1093,6 @@ func (ctx *Context) MaxAge() int64 {
 	return -1
 }
 
-// ErrFallback is just an empty error but it is recognised from the TransactionScope.Complete,
-// it reverts its changes and continue as normal, no error will be shown to the user.
-//
-// Usually it is used on recovery from panics (inside .BeginTransaction)
-// but users can use that also to by-pass the error's response of your custom transaction pipe.
-type ErrFallback struct{}
-
-func (ne *ErrFallback) Error() string {
-	return ""
-}
-
-// NewErrFallback returns a new error wihch contains an empty error,
-// look .BeginTransaction and context_test.go:TestTransactionRecoveryFromPanic
-func NewErrFallback() *ErrFallback {
-	return &ErrFallback{}
-}
-
-// ErrWithStatus custom error type which is useful
-// to send an error containing the http status code and a reason
-type ErrWithStatus struct {
-	// failure status code, required
-	statusCode int
-	// plain text message, optional
-	message string // if it's empty then the already registered custom(or default) http error will be fired.
-}
-
-// Silent in case the user changed his/her mind and wants to silence this error
-func (err *ErrWithStatus) Silent() error {
-	return NewErrFallback()
-}
-
-// Status sets the http status code of this error
-// if only status exists but no reason then
-// custom http error of this staus (if any) will be fired (context.EmitError)
-func (err *ErrWithStatus) Status(statusCode int) *ErrWithStatus {
-	err.statusCode = statusCode
-	return err
-}
-
-// Reason sets the reason message of this error
-func (err *ErrWithStatus) Reason(msg string) *ErrWithStatus {
-	err.message = msg
-	return err
-}
-
-// AppendReason just appends a reason message
-func (err *ErrWithStatus) AppendReason(msg string) *ErrWithStatus {
-	err.message += "\n" + msg
-	return err
-}
-
-// Error implements the error standard
-func (err ErrWithStatus) Error() string {
-	return err.message
-}
-
-// NewErrWithStatus returns an new custom error type which should be used
-// side by side with Transaction(s)
-func NewErrWithStatus() *ErrWithStatus {
-	return new(ErrWithStatus)
-}
-
-// TransactionScope is the (request) transaction scope of a handler's context
-// Can't say a lot here because I it will take more than 200 lines to write about.
-// You can search third-party articles or books on how Business Transaction works (it's quite simple, especialy here).
-// But I can provide you a simple example here: https://github.com/iris-contrib/examples/tree/master/transactions
-//
-// Note that this is unique and new
-// (=I haver never seen any other examples or code in Golang on this subject, so far, as with the most of iris features...)
-// it's not covers all paths,
-// such as databases, this should be managed by the libraries you use to make your database connection,
-// this transaction scope is only for iris' request & response(Context).
-// type TransactionScope struct {
-// 	Context         *Context
-// 	isRequestScoped bool
-// 	isFailure       bool
-// }
-//
-// var tspool = sync.Pool{New: func() interface{} { return &TransactionScope{} }}
-//
-// func acquireTransactionScope(ctx *Context) *TransactionScope {
-// 	ts := tspool.Get().(*TransactionScope)
-// 	ts.Context = ctx
-// 	return ts
-// }
-//
-// func releaseTransactionScope(ts *TransactionScope) {
-// 	ts.Context = nil
-// 	ts.isFailure = false
-// 	ts.isRequestScoped = false
-// 	tspool.Put(ts)
-// }
-//
-// // RequestScoped receives a boolean which determinates if other transactions depends on this.
-// // If setted true then whenever this transaction is not completed succesfuly,
-// // the rest of the transactions will be not executed at all.
-// //
-// // Defaults to false, execute all transactions on their own independently scopes.
-// func (r *TransactionScope) RequestScoped(isRequestScoped bool) {
-// 	r.isRequestScoped = isRequestScoped
-// }
-
-// Complete completes the transaction
-// rollback and send an error when:
-// 1. a not nil error AND non-empty reason AND custom type error has status code
-// 2. a not nil error AND empty reason BUT custom type error has status code
-// 3. a not nil error AND non-empty reason.
-//
-// The error can be a type of ErrWithStatus, create using the iris.NewErrWithStatus().
-// func (r *TransactionScope) Complete(err error) {
-// 	if err != nil {
-//
-// 		ctx := r.Context
-// 		statusCode := StatusInternalServerError // default http status code if not provided
-// 		reason := err.Error()
-// 		if _, ok := err.(*ErrFallback); ok {
-// 			// revert without any log or response.
-// 			r.isFailure = true
-// 			ctx.Response.Reset()
-// 			return
-// 		}
-// 		if errWstatus, ok := err.(*ErrWithStatus); ok {
-// 			if errWstatus.statusCode > 0 {
-// 				// get the status code from the custom error type
-// 				statusCode = errWstatus.statusCode
-//
-// 				// empty error message but status code given,
-// 				if reason == "" {
-// 					r.isFailure = true
-// 					// reset everything, cookies and headers and body.
-// 					ctx.Response.Reset()
-// 					// execute from custom (if any) http error (template or plain text)
-// 					ctx.EmitError(errWstatus.statusCode)
-// 					return
-// 				}
-// 			}
-// 		}
-//
-// 		if reason == "" {
-// 			// do nothing empty reason and no status code means that this is not a failure, even if the error is not nil.
-// 			return
-// 		}
-//
-// 		// rollback and send an error when we have:
-// 		// 1. a not nil error AND non-empty reason AND custom type error has status code
-// 		// 2. a not nil error AND empty reason BUT custom type error has status code
-// 		// 3. a not nil error AND non-empty reason.
-//
-// 		// reset any previous response,
-// 		// except the content type we may use it to fire an error or take that from custom error type (?)
-// 		// no let's keep the custom error type as simple as possible, take that from prev attempt:
-// 		cType := string(ctx.Response.Header.ContentType())
-// 		if cType == "" {
-// 			cType = "text/plain; charset=" + ctx.framework.Config.Charset
-// 		}
-//
-// 		// clears:
-// 		// - body
-// 		// - cookies
-// 		// - any headers
-// 		// and anything else we tried to sent before.
-// 		ctx.Response.Reset()
-//
-// 		// fire from the error or the custom error type
-// 		ctx.SetStatusCode(statusCode)
-// 		ctx.SetContentType(cType)
-// 		ctx.SetBodyString(reason)
-// 		r.isFailure = true
-// 		return
-// 	}
-//
-// }
-//
 // skipTransactionsContextKey set this to any value to stop executing next transactions
 // it's a context-key in order to be used from anywhere, set it by calling the SkipTransactions()
 const skipTransactionsContextKey = "__IRIS_TRANSACTIONS_SKIP___"
@@ -1284,7 +1111,6 @@ func (ctx *Context) TransactionsSkipped() bool {
 	return false
 }
 
-//
 // // TransactionFunc is just a func(scope *TransactionScope)
 // // used to register transaction(s) to a handler's context.
 // type TransactionFunc func(scope *TransactionScope)
@@ -1305,7 +1131,16 @@ func (ctx *Context) TransactionsSkipped() bool {
 // non-detailed error log for transacton unexpected panic
 var errTransactionInterrupted = errors.New("Transaction Interrupted, recovery from panic:\n%s")
 
-// BeginTransaction starts a request scoped transaction.
+// BeginTransaction starts a scoped transaction.
+//
+// Can't say a lot here because it will take more than 200 lines to write about.
+// You can search third-party articles or books on how Business Transaction works (it's quite simple, especialy here).
+//
+// Note that this is unique and new
+// (=I haver never seen any other examples or code in Golang on this subject, so far, as with the most of iris features...)
+// it's not covers all paths,
+// such as databases, this should be managed by the libraries you use to make your database connection,
+// this transaction scope is only for context's response.
 // Transactions have their own middleware ecosystem also, look iris.go:UseTransaction.
 //
 // See https://github.com/iris-contrib/examples/tree/master/transactions for more
@@ -1329,20 +1164,16 @@ func (ctx *Context) BeginTransaction(pipe func(transaction *Transaction)) {
 			t.Complete(nil)
 			// we continue as normal, no need to return here*
 		}
-		// if beforeFlush := t.Context.ResponseWriter.beforeFlush; beforeFlush != nil {
-		// 	ctx.ResponseWriter.SetBeforeFlush(func(w *ResponseWriter) {
-		//
-		// 	})
-		// }
+
+		// write the temp contents to the original writer
 		t.Context.ResponseWriter.writeTo(ctx.ResponseWriter)
-		// we will re-give the original response writer to the transaction in order their SetBeforeFlush to be work
+		// give back to the transaction the original writer (SetBeforeFlush works this way and only this way)
 		// this is tricky but nessecery if we want ctx.EmitError to work inside transactions
 		t.Context.ResponseWriter = ctx.ResponseWriter
-
 	}()
-	// run the worker with its response clone inside.
-	pipe(t)
 
+	// run the worker with its context clone inside.
+	pipe(t)
 }
 
 // Log logs to the iris defined logger
