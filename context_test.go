@@ -655,53 +655,42 @@ func TestTemplatesDisabled(t *testing.T) {
 	e.GET("/renderErr").Expect().Status(iris.StatusServiceUnavailable).Body().Equal(expctedErrMsg)
 }
 
-/*TODO:
 func TestTransactions(t *testing.T) {
 	iris.ResetDefault()
 	firstTransactionFailureMessage := "Error: Virtual failure!!!"
 	secondTransactionSuccessHTMLMessage := "<h1>This will sent at all cases because it lives on different transaction and it doesn't fails</h1>"
 	persistMessage := "<h1>I persist show this message to the client!</h1>"
 
-	maybeFailureTransaction := func(shouldFail bool, isRequestScoped bool) func(scope *iris.TransactionScope) {
-		return func(scope *iris.TransactionScope) {
-			// OPTIONAl, if true then the next transactions will not be executed if this transaction fails
-			scope.RequestScoped(isRequestScoped)
+	maybeFailureTransaction := func(shouldFail bool, isRequestScoped bool) func(t *iris.Transaction) {
+		return func(t *iris.Transaction) {
+			// OPTIONAl, if true then the next transactions and the flow will not be skipped if this transaction fails
+			if isRequestScoped {
+				t.SetScope(iris.RequestTransactionScope)
+			}
 
 			// OPTIONAL STEP:
 			// create a new custom type of error here to keep track of the status code and reason message
-			err := iris.NewErrWithStatus()
+			err := iris.NewTransactionErrResult()
 
-			// we should use scope.Context if we want to rollback on any errors lives inside this function clojure.
-			// if you want persistence then use the 'ctx'.
-			scope.Context.Text(iris.StatusOK, "Blablabla this should not be sent to the client because we will fill the err with a message and status")
-
-			//	var firstErr error  = do this()   // your code here
-			//	var secondErr error = try_do_this() // your code here
-			//	var thirdErr error  = try_do_this() // your code here
-			//	var fail bool = false
-
-			//	if firstErr != nil || secondErr != nil || thirdErr != nil {
-			//			fail = true
-			//	}
-			// or err.AppendReason(firstErr.Error()) // ... err.Reason(dbErr.Error()).Status(500)
+			t.Context.Text(iris.StatusOK, "Blablabla this should not be sent to the client because we will fill the err with a message and status")
 
 			fail := shouldFail
 
 			if fail {
-				err.Status(iris.StatusInternalServerError).
-					// if status given but no reason then the default or the custom http error will be fired (like ctx.EmitError)
-					Reason(firstTransactionFailureMessage)
+				err.StatusCode = iris.StatusInternalServerError
+				err.Reason = firstTransactionFailureMessage
 			}
 
 			// OPTIONAl STEP:
 			// but useful if we want to post back an error message to the client if the transaction failed.
 			// if the reason is empty then the transaction completed succesfuly,
-			// otherwise we rollback the whole response body and cookies and everything lives inside the scope.Request.
-			scope.Complete(err)
+			// otherwise we rollback the whole response body and cookies and everything lives inside the transaction.Request.
+			t.Complete(err)
 		}
 	}
 
-	successTransaction := func(scope *iris.TransactionScope) {
+	successTransaction := func(scope *iris.Transaction) {
+
 		scope.Context.HTML(iris.StatusOK,
 			secondTransactionSuccessHTMLMessage)
 		// * if we don't have any 'throw error' logic then no need of scope.Complete()
@@ -729,6 +718,24 @@ func TestTransactions(t *testing.T) {
 		ctx.BeginTransaction(successTransaction)
 	})
 
+	customErrorTemplateText := "<h1>custom error</h1>"
+	iris.OnError(iris.StatusInternalServerError, func(ctx *iris.Context) {
+		ctx.Text(iris.StatusInternalServerError, customErrorTemplateText)
+	})
+
+	failureWithRegisteredErrorHandler := func(ctx *iris.Context) {
+		ctx.BeginTransaction(func(transaction *iris.Transaction) {
+			transaction.SetScope(iris.RequestTransactionScope)
+			err := iris.NewTransactionErrResult()
+			err.StatusCode = iris.StatusInternalServerError // set only the status code in order to execute the registered template
+			transaction.Complete(err)
+		})
+
+		ctx.Text(iris.StatusOK, "this will not be sent to the client because first is requested scope and it's failed")
+	}
+
+	iris.Get("/failAllBecauseFirstTransactionFailedWithRegisteredErrorTemplate", failureWithRegisteredErrorHandler)
+
 	e := httptest.New(iris.Default, t)
 
 	e.GET("/failFirsTransactionButSuccessSecondWithPersistMessage").
@@ -736,22 +743,29 @@ func TestTransactions(t *testing.T) {
 		Status(iris.StatusOK).
 		ContentType("text/html", iris.Config.Charset).
 		Body().
-		Equal(firstTransactionFailureMessage + secondTransactionSuccessHTMLMessage + persistMessage)
+		Equal(secondTransactionSuccessHTMLMessage + persistMessage)
 
 	e.GET("/failFirsTransactionButSuccessSecond").
 		Expect().
 		Status(iris.StatusOK).
 		ContentType("text/html", iris.Config.Charset).
 		Body().
-		Equal(firstTransactionFailureMessage + secondTransactionSuccessHTMLMessage)
+		Equal(secondTransactionSuccessHTMLMessage)
 
 	e.GET("/failAllBecauseOfRequestScopeAndFailure").
 		Expect().
 		Status(iris.StatusInternalServerError).
 		Body().
 		Equal(firstTransactionFailureMessage)
+
+	e.GET("/failAllBecauseFirstTransactionFailedWithRegisteredErrorTemplate").
+		Expect().
+		Status(iris.StatusInternalServerError).
+		Body().
+		Equal(customErrorTemplateText)
 }
 
+/*
 func TestTransactionsMiddleware(t *testing.T) {
 	forbiddenMsg := "Error: Not allowed."
 	allowMsg := "Hello!"

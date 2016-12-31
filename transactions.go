@@ -6,27 +6,27 @@ package iris
 // in simple words it's just a 'traveler message' between the transaction and its scope.
 // it is totally optional
 type TransactionErrResult struct {
-	statusCode int
+	StatusCode int
 	// if reason is empty then the already relative registered (custom or not)
 	// error will be executed if the scope allows that.
-	reason      string
-	contentType string
+	Reason      string
+	ContentType string
 }
 
 // Error returns the reason given by the user or an empty string
 func (err TransactionErrResult) Error() string {
-	return err.reason
+	return err.Reason
 }
 
 // IsFailure returns true if this is an actual error
 func (err TransactionErrResult) IsFailure() bool {
-	return err.statusCode >= 400
+	return err.StatusCode >= 400
 }
 
 // NewTransactionErrResult returns a new transaction result with the given error message,
 // it can be empty too, but if not then the transaction's scope is decided what to do with that
-func NewTransactionErrResult(statusCode int, reason string, contentType string) TransactionErrResult {
-	return TransactionErrResult{statusCode, reason, contentType}
+func NewTransactionErrResult() TransactionErrResult {
+	return TransactionErrResult{}
 }
 
 // Transaction gives the users the opportunity to code their route handlers  cleaner and safier
@@ -40,17 +40,20 @@ func NewTransactionErrResult(statusCode int, reason string, contentType string) 
 //
 // For more information please view the tests
 type Transaction struct {
+	Context  *Context
 	parent   *Context
-	Response *ResponseWriter
 	hasError bool
 	scope    TransactionScope
 }
 
 func newTransaction(from *Context) *Transaction {
+	tempCtx := *from
+	writer := tempCtx.ResponseWriter.clone()
+	tempCtx.ResponseWriter = writer
 	t := &Transaction{
-		parent:   from,
-		Response: from.ResponseWriter.clone(),
-		scope:    TransientTransactionScope,
+		parent:  from,
+		Context: &tempCtx,
+		scope:   TransientTransactionScope,
 	}
 
 	return t
@@ -75,32 +78,31 @@ func (t *Transaction) Complete(err error) {
 
 		statusCode := StatusBadRequest
 		reason := err.Error()
-		cType := "text/plain; charset=" + t.parent.framework.Config.Charset
+		cType := "text/plain; charset=" + t.Context.framework.Config.Charset
 
 		if errWstatus, ok := err.(TransactionErrResult); ok {
-			if errWstatus.statusCode > 0 {
-				statusCode = errWstatus.statusCode
+			if errWstatus.StatusCode > 0 {
+				statusCode = errWstatus.StatusCode
 			}
 
-			if errWstatus.reason != "" {
-				reason = errWstatus.reason
+			if errWstatus.Reason != "" {
+				reason = errWstatus.Reason
 			}
 			// get the content type used on this transaction
-			if cTypeH := t.Response.Header().Get(contentType); cTypeH != "" {
+			if cTypeH := t.Context.ResponseWriter.Header().Get(contentType); cTypeH != "" {
 				cType = cTypeH
 			}
 
 		}
-
-		maybeErr.reason = reason
-		maybeErr.statusCode = statusCode
-		maybeErr.contentType = cType
+		maybeErr.StatusCode = statusCode
+		maybeErr.Reason = reason
+		maybeErr.ContentType = cType
 	}
 	// the transaction ends with error or not error, it decides what to do next with its Response
 	// the Response is appended to the parent context an all cases but it checks for empty body,headers and all that,
 	// if they are empty (silent error or not error at all)
 	// then all transaction's actions are skipped as expected
-	canContinue := t.scope.EndTransaction(maybeErr, t.Response, t.parent)
+	canContinue := t.scope.EndTransaction(maybeErr, t.Context)
 	if !canContinue {
 		t.parent.SkipTransactions()
 	}
@@ -111,15 +113,15 @@ func (t *Transaction) Complete(err error) {
 type TransactionScope interface {
 	// EndTransaction returns if can continue to the next transactions or not (false)
 	// called after Complete, empty or not empty error
-	EndTransaction(maybeErr TransactionErrResult, w *ResponseWriter, ctx *Context) bool
+	EndTransaction(maybeErr TransactionErrResult, ctx *Context) bool
 }
 
 // TransactionScopeFunc the transaction's scope signature
-type TransactionScopeFunc func(maybeErr TransactionErrResult, w *ResponseWriter, ctx *Context) bool
+type TransactionScopeFunc func(maybeErr TransactionErrResult, ctx *Context) bool
 
 // EndTransaction ends the transaction with a callback to itself, implements the TransactionScope interface
-func (tsf TransactionScopeFunc) EndTransaction(maybeErr TransactionErrResult, w *ResponseWriter, ctx *Context) bool {
-	return tsf(maybeErr, w, ctx)
+func (tsf TransactionScopeFunc) EndTransaction(maybeErr TransactionErrResult, ctx *Context) bool {
+	return tsf(maybeErr, ctx)
 }
 
 // TransientTransactionScope explaination:
@@ -127,9 +129,9 @@ func (tsf TransactionScopeFunc) EndTransaction(maybeErr TransactionErrResult, w 
 // independent 'silent' scope, if transaction fails (if transaction.IsFailure() == true)
 // then its response is not written to the real context no error is provided to the user.
 // useful for the most cases.
-var TransientTransactionScope = TransactionScopeFunc(func(maybeErr TransactionErrResult, w *ResponseWriter, ctx *Context) bool {
+var TransientTransactionScope = TransactionScopeFunc(func(maybeErr TransactionErrResult, ctx *Context) bool {
 	if maybeErr.IsFailure() {
-		w.Reset() // this response is skipped because it's empty.
+		ctx.ResponseWriter.Reset() // this response is skipped because it's empty.
 	}
 	return true
 })
@@ -139,21 +141,22 @@ var TransientTransactionScope = TransactionScopeFunc(func(maybeErr TransactionEr
 // if scope fails (if transaction.IsFailure() == true)
 // then the rest of the context's response  (transaction or normal flow)
 // is not written to the client, and an error status code is written instead.
-var RequestTransactionScope = TransactionScopeFunc(func(maybeErr TransactionErrResult, w *ResponseWriter, ctx *Context) bool {
+var RequestTransactionScope = TransactionScopeFunc(func(maybeErr TransactionErrResult, ctx *Context) bool {
 	if maybeErr.IsFailure() {
 		// we need to register a beforeResponseFlush event here in order
 		// to execute last the EmitError
 		// (which will reset the whole response's body, status code and headers setted from normal flow or other transactions too)
-		w.SetBeforeFlush(func() {
-			if maybeErr.reason != "" {
-				w.Reset()
+		ctx.ResponseWriter.SetBeforeFlush(func() {
+			if maybeErr.Reason != "" {
+				ctx.ResponseWriter.Reset()
 				// send the error with the info user provided
-				w.SetBodyString(maybeErr.reason)
-				w.WriteHeader(maybeErr.statusCode)
-				w.SetContentType(maybeErr.contentType)
+				ctx.ResponseWriter.SetBodyString(maybeErr.Reason)
+				ctx.ResponseWriter.WriteHeader(maybeErr.StatusCode)
+				ctx.ResponseWriter.SetContentType(maybeErr.ContentType)
 			} else {
+
 				// else execute the registered user error and skip the next transactions and all normal flow,
-				ctx.EmitError(maybeErr.statusCode)
+				ctx.EmitError(maybeErr.StatusCode)
 			}
 		})
 

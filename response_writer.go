@@ -214,7 +214,7 @@ func (w *ResponseWriter) clone() *ResponseWriter {
 	wc.ResponseWriter = w.ResponseWriter
 	wc.statusCode = w.statusCode
 	wc.headers = w.headers
-	wc.body = w.body
+	wc.body = w.body[0:]
 	wc.beforeFlush = w.beforeFlush
 	return wc
 }

@@ -1329,12 +1329,20 @@ func (ctx *Context) BeginTransaction(pipe func(transaction *Transaction)) {
 			t.Complete(nil)
 			// we continue as normal, no need to return here*
 		}
-
-		t.Response.writeTo(ctx.ResponseWriter)
+		// if beforeFlush := t.Context.ResponseWriter.beforeFlush; beforeFlush != nil {
+		// 	ctx.ResponseWriter.SetBeforeFlush(func(w *ResponseWriter) {
+		//
+		// 	})
+		// }
+		t.Context.ResponseWriter.writeTo(ctx.ResponseWriter)
+		// we will re-give the original response writer to the transaction in order their SetBeforeFlush to be work
+		// this is tricky but nessecery if we want ctx.EmitError to work inside transactions
+		t.Context.ResponseWriter = ctx.ResponseWriter
 
 	}()
 	// run the worker with its response clone inside.
 	pipe(t)
+
 }
 
 // Log logs to the iris defined logger
