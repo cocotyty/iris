@@ -190,7 +190,7 @@ app := iris.New()
 app.Listen(....)
 
 // New with configuration struct
-app := iris.New(iris.Configuration{ IsDevelopmnt: true})
+app := iris.New(iris.Configuration{ IsDevelopment: true})
 
 app.Listen(...)
 

@@ -13,11 +13,11 @@ to make on your app if you used iris before. If you don't find something you use
 
 - `context.GetFlash/SetFlash` -> `context.Session().GetFlash/GetFlashString/SetFlash/DeleteFlash/ClearFlashes/Flashes/HasFlash`
 
-- `context.FormValueString(string) -> context.FormValue(string)
-- `context.PathString()` -> context.Path()
-- `context.HostString()` -> context.Host()
+- `context.FormValueString(string)` -> `context.FormValue(string)`
+- `context.PathString()` -> `context.Path()`
+- `context.HostString()` -> `context.Host()`
 
-- `iris.Config.DisablePathEscape` is removed because now we have two methods to get a parameter `context.Param/ParamDecoded`.
+- `iris.Config.DisablePathEscape` was removed because now we have two methods to get a parameter `context.Param/ParamDecoded`.
 
 > NOTE: THIS IS NOT THE COMPLETE LIST YET, I have to fill some static files helpers before pushing the new version.
 
