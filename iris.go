@@ -655,7 +655,7 @@ func ReleaseCtx(ctx *Context) {
 // see .AcquireCtx & .Serve
 func (s *Framework) ReleaseCtx(ctx *Context) {
 	// flush the body when all finished
-	ctx.ResponseWriter.flushBody()
+	ctx.ResponseWriter.flushResponse()
 
 	ctx.Middleware = nil
 	ctx.session = nil

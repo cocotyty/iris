@@ -14,10 +14,12 @@ var rpool = sync.Pool{New: func() interface{} { return &ResponseWriter{} }}
 func acquireResponseWriter(underline http.ResponseWriter) *ResponseWriter {
 	w := rpool.Get().(*ResponseWriter)
 	w.ResponseWriter = underline
+	w.headers = underline.Header()
 	return w
 }
 
 func releaseResponseWriter(w *ResponseWriter) {
+	w.headers = nil
 	w.ResponseWriter = nil
 	w.statusCode = 0
 	w.ResetBody()
@@ -31,8 +33,12 @@ func releaseResponseWriter(w *ResponseWriter) {
 // has returned.
 type ResponseWriter struct {
 	http.ResponseWriter
-	body       []byte // keep track of the body in order to be resetable and useful inside custom transactions
-	statusCode int    // the saved status code which will be used from the cache service
+	// these three fields are setted on flushBody which runs only once on the end of the handler execution.
+	// this helps the performance on multi-write and keep tracks the body, status code and headers in order to run each transaction
+	// on its own
+	body       []byte      // keep track of the body in order to be resetable and useful inside custom transactions
+	statusCode int         // the saved status code which will be used from the cache service
+	headers    http.Header // the saved headers
 }
 
 // Header returns the header map that will be sent by
@@ -42,7 +48,7 @@ type ResponseWriter struct {
 // "Trailer" header before the call to WriteHeader (see example).
 // To suppress implicit response headers, set their value to nil.
 func (w *ResponseWriter) Header() http.Header {
-	return w.ResponseWriter.Header()
+	return w.headers
 }
 
 // StatusCode returns the status code header value
@@ -91,12 +97,15 @@ func (w *ResponseWriter) ResetBody() {
 	w.body = w.body[0:0]
 }
 
-// Reset resets the response body and the headers sent so far
+// ResetHeaders clears the temp headers
+func (w *ResponseWriter) ResetHeaders() {
+	// original response writer's headers are empty.
+	w.headers = w.ResponseWriter.Header()
+}
+
+// Reset resets the response body, headers and the status code header
 func (w *ResponseWriter) Reset() {
-	headers := w.ResponseWriter.Header()
-	for k := range headers {
-		w.ResponseWriter.Header()[k] = []string{}
-	}
+	w.ResetHeaders()
 	w.statusCode = 0
 	w.ResetBody()
 }
@@ -107,10 +116,7 @@ func (w *ResponseWriter) Reset() {
 // Thus explicit calls to WriteHeader are mainly used to
 // send error codes.
 func (w *ResponseWriter) WriteHeader(statusCode int) {
-	if w.statusCode == 0 { // set it only if not setted already, we don't want logs about multiple sends
-		w.statusCode = statusCode
-		w.ResponseWriter.WriteHeader(statusCode)
-	}
+	w.statusCode = statusCode
 }
 
 var errHijackNotSupported = errors.New("Hijack is not supported to this response writer!")
@@ -134,13 +140,25 @@ func (w *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errHijackNotSupported
 }
 
-// flushBody the full body to the underline response writer
-// called at the end of each request
-func (w *ResponseWriter) flushBody() {
-	if len(w.body) > 0 {
-		if w.statusCode == 0 { // if not setted set it here
-			w.WriteHeader(http.StatusOK)
+// flushResponse the full body, headers and status code to the underline response writer
+// called automatically at the end of each request, see ReleaseCtx
+func (w *ResponseWriter) flushResponse() {
+
+	if w.statusCode == 0 { // if not setted set it here
+		w.statusCode = StatusOK
+	}
+
+	w.ResponseWriter.WriteHeader(w.statusCode)
+
+	if w.headers != nil {
+		for k, values := range w.headers {
+			for i := range values {
+				w.ResponseWriter.Header().Add(k, values[i])
+			}
 		}
+	}
+
+	if len(w.body) > 0 {
 		w.ResponseWriter.Write(w.body)
 	}
 }

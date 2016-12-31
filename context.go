@@ -125,15 +125,6 @@ func (r *requestValues) Get(key string) interface{} {
 }
 
 func (r *requestValues) Reset() {
-	args := *r
-	n := len(args)
-	for i := 0; i < n; i++ {
-		v := args[i].value
-		// close any values which implements the Closer, some of the ORM packages does that.
-		if vc, ok := v.(io.Closer); ok {
-			vc.Close()
-		}
-	}
 	*r = (*r)[:0]
 }
 
@@ -340,25 +331,6 @@ func (ctx *Context) IsAjax() bool {
 	return ctx.RequestHeader("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
 }
 
-// // FormValueString returns a single value, as string, from post request's data
-// //
-// // Deprecated: Use ctx.Request.FormValue instead
-// func (ctx *Context) FormValueString(name string) string {
-// 	return ctx.Request.FormValue(name)
-// }
-
-// // FormValues returns a slice of string from post request's data
-// //
-// // Deprecated: Use ctx.Request.PostForm instead
-// func (ctx *Context) FormValues(name string) []string {
-// 	arrBytes :=  ctx.PostArgs().PeekMulti(name)
-// 	arrStr := make([]string, len(arrBytes))
-// 	for i, v := range arrBytes {
-// 		arrStr[i] = string(v)
-// 	}
-// 	return arrStr
-// }
-
 func (ctx *Context) askParseForm() error {
 	if ctx.Request.Form == nil {
 		if err := ctx.Request.ParseForm(); err != nil {
@@ -392,24 +364,6 @@ func (ctx *Context) FormValue(name string) string {
 	}
 	return strings.Join(valMulty, ",")
 }
-
-// // PostValues returns the post data values as []string of a single key/name
-// func (ctx *Context) PostValues(name string) []string {
-// 	var values []string
-// 	if v := ctx.PostValuesAll(); v != nil && len(v) > 0 {
-// 		values = v[name]
-// 	}
-// 	return values
-// }
-//
-// // PostValue returns the post data value of a single key/name
-// // returns an empty string if nothing found
-// func (ctx *Context) PostValue(name string) string {
-// 	if v := ctx.PostValues(name); len(v) > 0 {
-// 		return v[0]
-// 	}
-// 	return ""
-// }
 
 // Subdomain returns the subdomain (string) of this request, if any
 func (ctx *Context) Subdomain() (subdomain string) {
@@ -515,12 +469,9 @@ func (ctx *Context) SetContentType(s string) {
 	ctx.ResponseWriter.Header().Set(contentType, s)
 }
 
-// SetHeader write to the response writer's header to a given key the given value(s)
-//
-// Note: If you want to send a multi-line string as header's value use: strings.TrimSpace first.
+// SetHeader write to the response writer's header to a given key the given value
 func (ctx *Context) SetHeader(k string, v string) {
-	//v = strings.TrimSpace(v)
-	ctx.ResponseWriter.Header().Set(k, v)
+	ctx.ResponseWriter.Header().Add(k, v)
 }
 
 // SetStatusCode sets the status code header to the response
@@ -547,15 +498,6 @@ func (ctx *Context) Redirect(urlToRedirect string, statusHeader ...int) {
 		httpStatus = statusHeader[0]
 	}
 
-	// #355 [deprecated, net/http handles these things already, nothing to do more.]
-	// if ctx.IsTLS() {
-	// 	u := ctx.URI()
-	// 	u.SetSchemeBytes(httpsSchemeOnlyBytes)
-	// 	u.Update(urlToRedirect)
-	// 	ctx.SetHeader("Location", string(u.FullURI()))
-	// 	ctx.SetStatusCode(httpStatus)
-	// 	return
-	// }
 	if urlToRedirect == ctx.Path() {
 		if ctx.framework.Config.IsDevelopment {
 			ctx.Log("Trying to redirect to itself. FROM: %s TO: %s", ctx.Path(), urlToRedirect)
