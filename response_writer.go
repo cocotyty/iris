@@ -22,6 +22,7 @@ func releaseResponseWriter(w *ResponseWriter) {
 	w.headers = nil
 	w.ResponseWriter = nil
 	w.statusCode = 0
+	w.beforeFlush = nil
 	w.ResetBody()
 	rpool.Put(w)
 }
@@ -32,6 +33,11 @@ func releaseResponseWriter(w *ResponseWriter) {
 // A ResponseWriter may not be used after the Handler.ServeHTTP method
 // has returned.
 type ResponseWriter struct {
+	// yes only one callback, we need simplicity here because on EmitError the beforeFlush events should NOT be cleared
+	// but the response is cleared.
+	// Sometimes is useful to keep the event,
+	// so we keep one func only and let the user decide when he/she wants to override it with an empty func before the EmitError (context's behavior)
+	beforeFlush func()
 	http.ResponseWriter
 	// these three fields are setted on flushBody which runs only once on the end of the handler execution.
 	// this helps the performance on multi-write and keep tracks the body, status code and headers in order to run each transaction
@@ -82,8 +88,8 @@ func (w *ResponseWriter) Write(contents []byte) (int, error) {
 	return len(w.body), nil
 }
 
-// setBodyString overrides the body and sets it to a string value
-func (w *ResponseWriter) setBodyString(s string) {
+// SetBodyString overrides the body and sets it to a string value
+func (w *ResponseWriter) SetBodyString(s string) {
 	w.body = []byte(s)
 }
 
@@ -119,6 +125,16 @@ func (w *ResponseWriter) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
 }
 
+// ContentType returns the content type, if not setted returns empty string
+func (w *ResponseWriter) ContentType() string {
+	return w.headers.Get(contentType)
+}
+
+// SetContentType sets the content type header
+func (w *ResponseWriter) SetContentType(cType string) {
+	w.headers.Set(contentType, cType)
+}
+
 var errHijackNotSupported = errors.New("Hijack is not supported to this response writer!")
 
 // Hijack lets the caller take over the connection.
@@ -140,9 +156,18 @@ func (w *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errHijackNotSupported
 }
 
+// SetBeforeFlush registers the unique callback which called exactly before the response is flushed to the client
+func (w *ResponseWriter) SetBeforeFlush(cb func()) {
+	w.beforeFlush = cb
+}
+
 // flushResponse the full body, headers and status code to the underline response writer
 // called automatically at the end of each request, see ReleaseCtx
 func (w *ResponseWriter) flushResponse() {
+
+	if w.beforeFlush != nil {
+		w.beforeFlush()
+	}
 
 	if w.statusCode == 0 { // if not setted set it here
 		w.statusCode = StatusOK
@@ -161,6 +186,7 @@ func (w *ResponseWriter) flushResponse() {
 	if len(w.body) > 0 {
 		w.ResponseWriter.Write(w.body)
 	}
+
 }
 
 // Flush sends any buffered data to the client.
@@ -182,34 +208,42 @@ func (w *ResponseWriter) Flush() {
 }
 
 // clone returns a clone of this response writer
-// it copies the header, status code and headers and returns a new ResponseWriter
+// it copies the header, status code, headers and the beforeFlush finally  returns a new ResponseWriter
 func (w *ResponseWriter) clone() *ResponseWriter {
 	wc := &ResponseWriter{}
 	wc.ResponseWriter = w.ResponseWriter
 	wc.statusCode = w.statusCode
 	wc.headers = w.headers
 	wc.body = w.body
+	wc.beforeFlush = w.beforeFlush
 	return wc
 }
 
 // writeTo writes a response writer (temp: status code, headers and body) to another response writer
 func (w *ResponseWriter) writeTo(to *ResponseWriter) {
 	// set the status code, failure status code are first class
-	if w.statusCode > to.statusCode {
+	if w.statusCode > 0 {
 		to.statusCode = w.statusCode
 	}
 
 	// append the headers
-	for k, values := range w.headers {
-		for _, v := range values {
-			if to.headers.Get(v) == "" {
-				to.headers.Add(k, v)
+	if w.headers != nil {
+		for k, values := range w.headers {
+			for _, v := range values {
+				if to.headers.Get(v) == "" {
+					to.headers.Add(k, v)
+				}
 			}
 		}
+
 	}
 
 	// append the body
 	if len(w.body) > 0 {
 		to.Write(w.body)
+	}
+
+	if w.beforeFlush != nil {
+		to.SetBeforeFlush(w.beforeFlush)
 	}
 }

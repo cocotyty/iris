@@ -553,7 +553,7 @@ func (ctx *Context) WriteString(s string) (n int, err error) {
 
 // SetBodyString writes a simple string to the response.
 func (ctx *Context) SetBodyString(s string) {
-	ctx.ResponseWriter.setBodyString(s)
+	ctx.ResponseWriter.SetBodyString(s)
 }
 
 func (ctx *Context) clientAllowsGzip() bool {
@@ -1165,35 +1165,35 @@ func NewErrWithStatus() *ErrWithStatus {
 // it's not covers all paths,
 // such as databases, this should be managed by the libraries you use to make your database connection,
 // this transaction scope is only for iris' request & response(Context).
-type TransactionScope struct {
-	Context         *Context
-	isRequestScoped bool
-	isFailure       bool
-}
-
-var tspool = sync.Pool{New: func() interface{} { return &TransactionScope{} }}
-
-func acquireTransactionScope(ctx *Context) *TransactionScope {
-	ts := tspool.Get().(*TransactionScope)
-	ts.Context = ctx
-	return ts
-}
-
-func releaseTransactionScope(ts *TransactionScope) {
-	ts.Context = nil
-	ts.isFailure = false
-	ts.isRequestScoped = false
-	tspool.Put(ts)
-}
-
-// RequestScoped receives a boolean which determinates if other transactions depends on this.
-// If setted true then whenever this transaction is not completed succesfuly,
-// the rest of the transactions will be not executed at all.
+// type TransactionScope struct {
+// 	Context         *Context
+// 	isRequestScoped bool
+// 	isFailure       bool
+// }
 //
-// Defaults to false, execute all transactions on their own independently scopes.
-func (r *TransactionScope) RequestScoped(isRequestScoped bool) {
-	r.isRequestScoped = isRequestScoped
-}
+// var tspool = sync.Pool{New: func() interface{} { return &TransactionScope{} }}
+//
+// func acquireTransactionScope(ctx *Context) *TransactionScope {
+// 	ts := tspool.Get().(*TransactionScope)
+// 	ts.Context = ctx
+// 	return ts
+// }
+//
+// func releaseTransactionScope(ts *TransactionScope) {
+// 	ts.Context = nil
+// 	ts.isFailure = false
+// 	ts.isRequestScoped = false
+// 	tspool.Put(ts)
+// }
+//
+// // RequestScoped receives a boolean which determinates if other transactions depends on this.
+// // If setted true then whenever this transaction is not completed succesfuly,
+// // the rest of the transactions will be not executed at all.
+// //
+// // Defaults to false, execute all transactions on their own independently scopes.
+// func (r *TransactionScope) RequestScoped(isRequestScoped bool) {
+// 	r.isRequestScoped = isRequestScoped
+// }
 
 // Complete completes the transaction
 // rollback and send an error when:
@@ -1266,23 +1266,24 @@ func (r *TransactionScope) RequestScoped(isRequestScoped bool) {
 //
 // }
 //
-// // skipTransactionsContextKey set this to any value to stop executing next transactions
-// // it's a context-key in order to be used from anywhere, set it by calling the SkipTransactions()
-// const skipTransactionsContextKey = "@@IRIS_TRANSACTIONS_SKIP_@@"
-//
-// // SkipTransactions if called then skip the rest of the transactions
-// // or all of them if called before the first transaction
-// func (ctx *Context) SkipTransactions() {
-// 	ctx.Set(skipTransactionsContextKey, 1)
-// }
-//
-// // TransactionsSkipped returns true if the transactions skipped or canceled at all.
-// func (ctx *Context) TransactionsSkipped() bool {
-// 	if n, err := ctx.GetInt(skipTransactionsContextKey); err == nil && n == 1 {
-// 		return true
-// 	}
-// 	return false
-// }
+// skipTransactionsContextKey set this to any value to stop executing next transactions
+// it's a context-key in order to be used from anywhere, set it by calling the SkipTransactions()
+const skipTransactionsContextKey = "__IRIS_TRANSACTIONS_SKIP___"
+
+// SkipTransactions if called then skip the rest of the transactions
+// or all of them if called before the first transaction
+func (ctx *Context) SkipTransactions() {
+	ctx.Set(skipTransactionsContextKey, 1)
+}
+
+// TransactionsSkipped returns true if the transactions skipped or canceled at all.
+func (ctx *Context) TransactionsSkipped() bool {
+	if n, err := ctx.GetInt(skipTransactionsContextKey); err == nil && n == 1 {
+		return true
+	}
+	return false
+}
+
 //
 // // TransactionFunc is just a func(scope *TransactionScope)
 // // used to register transaction(s) to a handler's context.
@@ -1301,56 +1302,40 @@ func (r *TransactionScope) RequestScoped(isRequestScoped bool) {
 // 	}
 // }
 //
-// // non-detailed error log for transacton unexpected panic
-// var errTransactionInterrupted = errors.New("Transaction Interrupted, recovery from panic:\n%s")
+// non-detailed error log for transacton unexpected panic
+var errTransactionInterrupted = errors.New("Transaction Interrupted, recovery from panic:\n%s")
+
+// BeginTransaction starts a request scoped transaction.
+// Transactions have their own middleware ecosystem also, look iris.go:UseTransaction.
 //
-// // BeginTransaction starts a request scoped transaction.
-// // Transactions have their own middleware ecosystem also, look iris.go:UseTransaction.
-// //
-// // See https://github.com/iris-contrib/examples/tree/master/transactions for more
-// func (ctx *Context) BeginTransaction(pipe func(scope *TransactionScope)) {
-// 	// SILLY NOTE: use of manual pipe type in order of TransactionFunc
-// 	// in order to help editors complete the sentence here...
-//
-// 	// do NOT begin a transaction when the previous transaction has been failed
-// 	// and it was requested scoped or SkipTransactions called manually.
-// 	if ctx.TransactionsSkipped() {
-// 		return
-// 	}
-//
-// 	// hold the temp context which will be appear and ready-to-use from the pipe.
-// 	tempCtx := *ctx
-// 	// get a transaction scope from the pool by passing the temp context/
-// 	scope := acquireTransactionScope(&tempCtx)
-// 	defer func() {
-// 		if err := recover(); err != nil {
-// 			if ctx.framework.Config.IsDevelopment {
-// 				ctx.Log(errTransactionInterrupted.Format(err).Error())
-// 			}
-// 			// complete (again or not , doesn't matters) the scope without loud
-// 			scope.Complete(NewErrFallback())
-// 			// we continue as normal, no need to return here*
-// 		}
-//
-// 		// if the transaction completed with an error then the transaction itself reverts the changes
-// 		// and replaces the context's response with an error.
-// 		// if the transaction completed successfully then we need to pass the temp's context's response to this context.
-// 		// so we must copy back its context at all cases, no matter the result of the transaction.
-// 		*ctx = *scope.Context
-//
-// 		// if the scope had lifetime of the whole request and it completed with an error(failure)
-// 		// then we do not continue to the next transactions.
-// 		if scope.isRequestScoped && scope.isFailure {
-// 			ctx.SkipTransactions()
-// 		}
-//
-// 		// finally, release and put the transaction scope back to the pool.
-// 		releaseTransactionScope(scope)
-// 	}()
-// 	// run the worker with its context inside this scope.
-// 	pipe(scope)
-//
-// }
+// See https://github.com/iris-contrib/examples/tree/master/transactions for more
+func (ctx *Context) BeginTransaction(pipe func(transaction *Transaction)) {
+	// SILLY NOTE: use of manual pipe type in order of TransactionFunc
+	// in order to help editors complete the sentence here...
+
+	// do NOT begin a transaction when the previous transaction has been failed
+	// and it was requested scoped or SkipTransactions called manually.
+	if ctx.TransactionsSkipped() {
+		return
+	}
+	// get a transaction scope from the pool by passing the temp context/
+	t := newTransaction(ctx)
+	defer func() {
+		if err := recover(); err != nil {
+			if ctx.framework.Config.IsDevelopment {
+				ctx.Log(errTransactionInterrupted.Format(err).Error())
+			}
+			// complete (again or not , doesn't matters) the scope without loud
+			t.Complete(nil)
+			// we continue as normal, no need to return here*
+		}
+
+		t.Response.writeTo(ctx.ResponseWriter)
+
+	}()
+	// run the worker with its response clone inside.
+	pipe(t)
+}
 
 // Log logs to the iris defined logger
 func (ctx *Context) Log(format string, a ...interface{}) {
