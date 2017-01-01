@@ -312,19 +312,13 @@ func save(ctx *iris.Context)  {
 	name := ctx.FormValue("name")
 	email := ctx.FormValue("email")
 	// Get avatar
-	avatar, err := ctx.FormFile("avatar")
+	avatar, info, err := ctx.FormFile("avatar")
 	if err != nil {
        ctx.EmitError(iris.StatusInternalServerError)
        return
 	}
 
-	// Source
-	src, err := avatar.Open()
-	if err != nil {
-       ctx.EmitError(iris.StatusInternalServerError)
-       return
-	}
-	defer src.Close()
+	defer avatar.Close()
 
 	// Destination
 	dst, err := os.Create(avatar.Filename)
@@ -335,7 +329,7 @@ func save(ctx *iris.Context)  {
 	defer dst.Close()
 
 	// Copy
-	if _, err = io.Copy(dst, src); err != nil {
+	if _, err = io.Copy(dst, avatar); err != nil {
        ctx.EmitError(iris.StatusInternalServerError)
        return
 	}

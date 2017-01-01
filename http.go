@@ -44,147 +44,137 @@ var (
 	AllMethods = [...]string{MethodGet, MethodPost, MethodPut, MethodDelete, MethodConnect, MethodHead, MethodPatch, MethodOptions, MethodTrace}
 )
 
+// HTTP status codes.
 const (
-	// StatusContinue http status '100'
-	StatusContinue = 100
-	// StatusSwitchingProtocols http status '101'
-	StatusSwitchingProtocols = 101
-	// StatusOK http status '200'
-	StatusOK = 200
-	// StatusCreated http status '201'
-	StatusCreated = 201
-	// StatusAccepted http status '202'
-	StatusAccepted = 202
-	// StatusNonAuthoritativeInfo http status '203'
-	StatusNonAuthoritativeInfo = 203
-	// StatusNoContent http status '204'
-	StatusNoContent = 204
-	// StatusResetContent http status '205'
-	StatusResetContent = 205
-	// StatusPartialContent http status '206'
-	StatusPartialContent = 206
-	// StatusMultipleChoices http status '300'
-	StatusMultipleChoices = 300
-	// StatusMovedPermanently http status '301'
-	StatusMovedPermanently = 301
-	// StatusFound http status '302'
-	StatusFound = 302
-	// StatusSeeOther http status '303'
-	StatusSeeOther = 303
-	// StatusNotModified http status '304'
-	StatusNotModified = 304
-	// StatusUseProxy http status '305'
-	StatusUseProxy = 305
-	// StatusTemporaryRedirect http status '307'
-	StatusTemporaryRedirect = 307
-	// StatusBadRequest http status '400'
-	StatusBadRequest = 400
-	// StatusUnauthorized http status '401'
-	StatusUnauthorized = 401
-	// StatusPaymentRequired http status '402'
-	StatusPaymentRequired = 402
-	// StatusForbidden http status '403'
-	StatusForbidden = 403
-	// StatusNotFound http status '404'
-	StatusNotFound = 404
-	// StatusMethodNotAllowed http status '405'
-	StatusMethodNotAllowed = 405
-	// StatusNotAcceptable http status '406'
-	StatusNotAcceptable = 406
-	// StatusProxyAuthRequired http status '407'
-	StatusProxyAuthRequired = 407
-	// StatusRequestTimeout http status '408'
-	StatusRequestTimeout = 408
-	// StatusConflict http status '409'
-	StatusConflict = 409
-	// StatusGone http status '410'
-	StatusGone = 410
-	// StatusLengthRequired http status '411'
-	StatusLengthRequired = 411
-	// StatusPreconditionFailed http status '412'
-	StatusPreconditionFailed = 412
-	// StatusRequestEntityTooLarge http status '413'
-	StatusRequestEntityTooLarge = 413
-	// StatusRequestURITooLong http status '414'
-	StatusRequestURITooLong = 414
-	// StatusUnsupportedMediaType http status '415'
-	StatusUnsupportedMediaType = 415
-	// StatusRequestedRangeNotSatisfiable http status '416'
-	StatusRequestedRangeNotSatisfiable = 416
-	// StatusExpectationFailed http status '417'
-	StatusExpectationFailed = 417
-	// StatusTeapot http status '418'
-	StatusTeapot = 418
-	// StatusPreconditionRequired http status '428'
-	StatusPreconditionRequired = 428
-	// StatusTooManyRequests http status '429'
-	StatusTooManyRequests = 429
-	// StatusRequestHeaderFieldsTooLarge http status '431'
-	StatusRequestHeaderFieldsTooLarge = 431
-	// StatusUnavailableForLegalReasons http status '451'
-	StatusUnavailableForLegalReasons = 451
-	// StatusInternalServerError http status '500'
-	StatusInternalServerError = 500
-	// StatusNotImplemented http status '501'
-	StatusNotImplemented = 501
-	// StatusBadGateway http status '502'
-	StatusBadGateway = 502
-	// StatusServiceUnavailable http status '503'
-	StatusServiceUnavailable = 503
-	// StatusGatewayTimeout http status '504'
-	StatusGatewayTimeout = 504
-	// StatusHTTPVersionNotSupported http status '505'
-	StatusHTTPVersionNotSupported = 505
-	// StatusNetworkAuthenticationRequired http status '511'
-	StatusNetworkAuthenticationRequired = 511
+	StatusContinue           = 100 // RFC 7231, 6.2.1
+	StatusSwitchingProtocols = 101 // RFC 7231, 6.2.2
+	StatusProcessing         = 102 // RFC 2518, 10.1
+
+	StatusOK                   = 200 // RFC 7231, 6.3.1
+	StatusCreated              = 201 // RFC 7231, 6.3.2
+	StatusAccepted             = 202 // RFC 7231, 6.3.3
+	StatusNonAuthoritativeInfo = 203 // RFC 7231, 6.3.4
+	StatusNoContent            = 204 // RFC 7231, 6.3.5
+	StatusResetContent         = 205 // RFC 7231, 6.3.6
+	StatusPartialContent       = 206 // RFC 7233, 4.1
+	StatusMultiStatus          = 207 // RFC 4918, 11.1
+	StatusAlreadyReported      = 208 // RFC 5842, 7.1
+	StatusIMUsed               = 226 // RFC 3229, 10.4.1
+
+	StatusMultipleChoices   = 300 // RFC 7231, 6.4.1
+	StatusMovedPermanently  = 301 // RFC 7231, 6.4.2
+	StatusFound             = 302 // RFC 7231, 6.4.3
+	StatusSeeOther          = 303 // RFC 7231, 6.4.4
+	StatusNotModified       = 304 // RFC 7232, 4.1
+	StatusUseProxy          = 305 // RFC 7231, 6.4.5
+	_                       = 306 // RFC 7231, 6.4.6 (Unused)
+	StatusTemporaryRedirect = 307 // RFC 7231, 6.4.7
+	StatusPermanentRedirect = 308 // RFC 7538, 3
+
+	StatusBadRequest                   = 400 // RFC 7231, 6.5.1
+	StatusUnauthorized                 = 401 // RFC 7235, 3.1
+	StatusPaymentRequired              = 402 // RFC 7231, 6.5.2
+	StatusForbidden                    = 403 // RFC 7231, 6.5.3
+	StatusNotFound                     = 404 // RFC 7231, 6.5.4
+	StatusMethodNotAllowed             = 405 // RFC 7231, 6.5.5
+	StatusNotAcceptable                = 406 // RFC 7231, 6.5.6
+	StatusProxyAuthRequired            = 407 // RFC 7235, 3.2
+	StatusRequestTimeout               = 408 // RFC 7231, 6.5.7
+	StatusConflict                     = 409 // RFC 7231, 6.5.8
+	StatusGone                         = 410 // RFC 7231, 6.5.9
+	StatusLengthRequired               = 411 // RFC 7231, 6.5.10
+	StatusPreconditionFailed           = 412 // RFC 7232, 4.2
+	StatusRequestEntityTooLarge        = 413 // RFC 7231, 6.5.11
+	StatusRequestURITooLong            = 414 // RFC 7231, 6.5.12
+	StatusUnsupportedMediaType         = 415 // RFC 7231, 6.5.13
+	StatusRequestedRangeNotSatisfiable = 416 // RFC 7233, 4.4
+	StatusExpectationFailed            = 417 // RFC 7231, 6.5.14
+	StatusTeapot                       = 418 // RFC 7168, 2.3.3
+	StatusUnprocessableEntity          = 422 // RFC 4918, 11.2
+	StatusLocked                       = 423 // RFC 4918, 11.3
+	StatusFailedDependency             = 424 // RFC 4918, 11.4
+	StatusUpgradeRequired              = 426 // RFC 7231, 6.5.15
+	StatusPreconditionRequired         = 428 // RFC 6585, 3
+	StatusTooManyRequests              = 429 // RFC 6585, 4
+	StatusRequestHeaderFieldsTooLarge  = 431 // RFC 6585, 5
+	StatusUnavailableForLegalReasons   = 451 // RFC 7725, 3
+
+	StatusInternalServerError           = 500 // RFC 7231, 6.6.1
+	StatusNotImplemented                = 501 // RFC 7231, 6.6.2
+	StatusBadGateway                    = 502 // RFC 7231, 6.6.3
+	StatusServiceUnavailable            = 503 // RFC 7231, 6.6.4
+	StatusGatewayTimeout                = 504 // RFC 7231, 6.6.5
+	StatusHTTPVersionNotSupported       = 505 // RFC 7231, 6.6.6
+	StatusVariantAlsoNegotiates         = 506 // RFC 2295, 8.1
+	StatusInsufficientStorage           = 507 // RFC 4918, 11.5
+	StatusLoopDetected                  = 508 // RFC 5842, 7.2
+	StatusNotExtended                   = 510 // RFC 2774, 7
+	StatusNetworkAuthenticationRequired = 511 // RFC 6585, 6
 )
 
 var statusText = map[int]string{
-	StatusContinue:                      "Continue",
-	StatusSwitchingProtocols:            "Switching Protocols",
-	StatusOK:                            "OK",
-	StatusCreated:                       "Created",
-	StatusAccepted:                      "Accepted",
-	StatusNonAuthoritativeInfo:          "Non-Authoritative Information",
-	StatusNoContent:                     "No Content",
-	StatusResetContent:                  "Reset Content",
-	StatusPartialContent:                "Partial Content",
-	StatusMultipleChoices:               "Multiple Choices",
-	StatusMovedPermanently:              "Moved Permanently",
-	StatusFound:                         "Found",
-	StatusSeeOther:                      "See Other",
-	StatusNotModified:                   "Not Modified",
-	StatusUseProxy:                      "Use Proxy",
-	StatusTemporaryRedirect:             "Temporary Redirect",
-	StatusBadRequest:                    "Bad Request",
-	StatusUnauthorized:                  "Unauthorized",
-	StatusPaymentRequired:               "Payment Required",
-	StatusForbidden:                     "Forbidden",
-	StatusNotFound:                      "Not Found",
-	StatusMethodNotAllowed:              "Method Not Allowed",
-	StatusNotAcceptable:                 "Not Acceptable",
-	StatusProxyAuthRequired:             "Proxy Authentication Required",
-	StatusRequestTimeout:                "Request Timeout",
-	StatusConflict:                      "Conflict",
-	StatusGone:                          "Gone",
-	StatusLengthRequired:                "Length Required",
-	StatusPreconditionFailed:            "Precondition Failed",
-	StatusRequestEntityTooLarge:         "Request Entity Too Large",
-	StatusRequestURITooLong:             "Request URI Too Long",
-	StatusUnsupportedMediaType:          "Unsupported Media Type",
-	StatusRequestedRangeNotSatisfiable:  "Requested Range Not Satisfiable",
-	StatusExpectationFailed:             "Expectation Failed",
-	StatusTeapot:                        "I'm a teapot",
-	StatusPreconditionRequired:          "Precondition Required",
-	StatusTooManyRequests:               "Too Many Requests",
-	StatusRequestHeaderFieldsTooLarge:   "Request Header Fields Too Large",
-	StatusUnavailableForLegalReasons:    "Unavailable For Legal Reasons",
+	StatusContinue:           "Continue",
+	StatusSwitchingProtocols: "Switching Protocols",
+	StatusProcessing:         "Processing",
+
+	StatusOK:                   "OK",
+	StatusCreated:              "Created",
+	StatusAccepted:             "Accepted",
+	StatusNonAuthoritativeInfo: "Non-Authoritative Information",
+	StatusNoContent:            "No Content",
+	StatusResetContent:         "Reset Content",
+	StatusPartialContent:       "Partial Content",
+	StatusMultiStatus:          "Multi-Status",
+	StatusAlreadyReported:      "Already Reported",
+	StatusIMUsed:               "IM Used",
+
+	StatusMultipleChoices:   "Multiple Choices",
+	StatusMovedPermanently:  "Moved Permanently",
+	StatusFound:             "Found",
+	StatusSeeOther:          "See Other",
+	StatusNotModified:       "Not Modified",
+	StatusUseProxy:          "Use Proxy",
+	StatusTemporaryRedirect: "Temporary Redirect",
+	StatusPermanentRedirect: "Permanent Redirect",
+
+	StatusBadRequest:                   "Bad Request",
+	StatusUnauthorized:                 "Unauthorized",
+	StatusPaymentRequired:              "Payment Required",
+	StatusForbidden:                    "Forbidden",
+	StatusNotFound:                     "Not Found",
+	StatusMethodNotAllowed:             "Method Not Allowed",
+	StatusNotAcceptable:                "Not Acceptable",
+	StatusProxyAuthRequired:            "Proxy Authentication Required",
+	StatusRequestTimeout:               "Request Timeout",
+	StatusConflict:                     "Conflict",
+	StatusGone:                         "Gone",
+	StatusLengthRequired:               "Length Required",
+	StatusPreconditionFailed:           "Precondition Failed",
+	StatusRequestEntityTooLarge:        "Request Entity Too Large",
+	StatusRequestURITooLong:            "Request URI Too Long",
+	StatusUnsupportedMediaType:         "Unsupported Media Type",
+	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
+	StatusExpectationFailed:            "Expectation Failed",
+	StatusTeapot:                       "I'm a teapot",
+	StatusUnprocessableEntity:          "Unprocessable Entity",
+	StatusLocked:                       "Locked",
+	StatusFailedDependency:             "Failed Dependency",
+	StatusUpgradeRequired:              "Upgrade Required",
+	StatusPreconditionRequired:         "Precondition Required",
+	StatusTooManyRequests:              "Too Many Requests",
+	StatusRequestHeaderFieldsTooLarge:  "Request Header Fields Too Large",
+	StatusUnavailableForLegalReasons:   "Unavailable For Legal Reasons",
+
 	StatusInternalServerError:           "Internal Server Error",
 	StatusNotImplemented:                "Not Implemented",
 	StatusBadGateway:                    "Bad Gateway",
 	StatusServiceUnavailable:            "Service Unavailable",
 	StatusGatewayTimeout:                "Gateway Timeout",
 	StatusHTTPVersionNotSupported:       "HTTP Version Not Supported",
+	StatusVariantAlsoNegotiates:         "Variant Also Negotiates",
+	StatusInsufficientStorage:           "Insufficient Storage",
+	StatusLoopDetected:                  "Loop Detected",
+	StatusNotExtended:                   "Not Extended",
 	StatusNetworkAuthenticationRequired: "Network Authentication Required",
 }
 
@@ -1357,44 +1347,44 @@ func ParseScheme(domain string) string {
 // ProxyHandler returns a new fasthttp handler which works as 'proxy', maybe doesn't suits you look its code before using that in production
 var ProxyHandler = func(redirectSchemeAndHost string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		/*
-			// override the handler and redirect all requests to this addr
-			redirectTo := redirectSchemeAndHost
-			fakehost := r.URL.Host
-			path := r.URL.EscapedPath()
-			if strings.Count(fakehost, ".") >= 3 { // propably a subdomain, pure check but doesn't matters don't worry
-				if sufIdx := strings.LastIndexByte(fakehost, '.'); sufIdx > 0 {
-					// check if the last part is a number instead of .com/.gr...
-					// if it's number then it's propably is 0.0.0.0 or 127.0.0.1... so it shouldn' use  subdomain
-					if _, err := strconv.Atoi(fakehost[sufIdx+1:]); err != nil {
-						// it's not number then process the try to parse the subdomain
-						redirectScheme := ParseScheme(redirectSchemeAndHost)
-						realHost := strings.Replace(redirectSchemeAndHost, redirectScheme, "", 1)
-						redirectHost := strings.Replace(fakehost, fakehost, realHost, 1)
-						redirectTo = redirectScheme + redirectHost + path
-						http.Redirect(w, r, redirectTo, StatusMovedPermanently)
-						return
-					}
+
+		// override the handler and redirect all requests to this addr
+		redirectTo := redirectSchemeAndHost
+		fakehost := r.URL.Host
+		path := r.URL.EscapedPath()
+		if strings.Count(fakehost, ".") >= 3 { // propably a subdomain, pure check but doesn't matters don't worry
+			if sufIdx := strings.LastIndexByte(fakehost, '.'); sufIdx > 0 {
+				// check if the last part is a number instead of .com/.gr...
+				// if it's number then it's propably is 0.0.0.0 or 127.0.0.1... so it shouldn' use  subdomain
+				if _, err := strconv.Atoi(fakehost[sufIdx+1:]); err != nil {
+					// it's not number then process the try to parse the subdomain
+					redirectScheme := ParseScheme(redirectSchemeAndHost)
+					realHost := strings.Replace(redirectSchemeAndHost, redirectScheme, "", 1)
+					redirectHost := strings.Replace(fakehost, fakehost, realHost, 1)
+					redirectTo = redirectScheme + redirectHost + path
+					http.Redirect(w, r, redirectTo, StatusMovedPermanently)
+					return
 				}
 			}
-			if path != "/" {
-				redirectTo += path
-			}
-			if redirectTo == r.URL.String() {
-				println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectTo)
-				return
-			}
-
-			http.Redirect(w, r, redirectTo, StatusMovedPermanently)
-		*/
-		if redirectSchemeAndHost+r.RequestURI == r.URL.String() {
-			println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectSchemeAndHost + r.RequestURI)
+		}
+		if path != "/" {
+			redirectTo += path
+		}
+		if redirectTo == r.URL.String() {
 			return
 		}
-		urlToRedirect := redirectSchemeAndHost + r.RequestURI
 
-		w.Header().Set("Location", urlToRedirect)
-		w.WriteHeader(StatusMovedPermanently)
+		http.Redirect(w, r, redirectTo, StatusMovedPermanently)
+
+		/*
+			if redirectSchemeAndHost+r.RequestURI == r.URL.String() {
+				println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectSchemeAndHost + r.RequestURI)
+				return
+			}
+			urlToRedirect := redirectSchemeAndHost + r.RequestURI
+
+			w.Header().Set("Location", urlToRedirect)
+			w.WriteHeader(StatusMovedPermanently)*/
 	}
 }
 

@@ -51,7 +51,7 @@ dynamic subdomains, routes, party of subdomains & routes, ssh and much more
 
 visit https://docs.iris-go.com
 */
-package iris // import "github.com/kataras/iris/iris"
+package iris // import "github.com/kataras/iris"
 
 import (
 	"bytes"
@@ -1162,6 +1162,7 @@ type (
 		StaticContent(string, string, []byte) RouteNameFunc
 		StaticEmbedded(string, string, func(string) ([]byte, error), func() []string) RouteNameFunc
 		Favicon(string, ...string) RouteNameFunc
+		///TODO: StaticWeb and Static methods align with net/http's standard way.
 
 		// templates
 		Layout(string) MuxAPI // returns itself
