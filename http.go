@@ -1380,6 +1380,8 @@ var ProxyHandler = func(redirectSchemeAndHost string) http.HandlerFunc {
 			return
 		}
 
+		//	redirectTo := redirectSchemeAndHost + r.RequestURI
+
 		http.Redirect(w, r, redirectTo, StatusMovedPermanently)
 	}
 }

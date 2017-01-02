@@ -47,7 +47,9 @@ Feature Overview
 -----------
 
 - Focus on high performance
+- Highly customizable
 - HTTP/2 full support
+- Hot Reload on source code changes
 - Compatible with all net/http handlers
 - Automatically install and serve certificates from https://letsencrypt.org
 - Robust routing and middleware ecosystem
@@ -61,9 +63,8 @@ Feature Overview
 - Graceful shutdown
 - Limit request body
 - Localization i18N
-- Serve static files
-- Cache
-- Log requests
+- Serve static files, directories and streams
+- Fast Cache System
 - Customizable format and output for the logger
 - Customizable HTTP errors
 - Compression (Gzip)
@@ -71,20 +72,13 @@ Feature Overview
  - OAuth, OAuth2 supporting 27+ popular websites
  - JWT
  - Basic Authentication
- - HTTP Sessions
+ - HTTP Sessions and flash messages
 - Add / Remove trailing slash from the URL with option to redirect
-- Redirect requests
- - HTTP to HTTPS
- - HTTP to HTTPS WWW
- - HTTP to HTTPS non WWW
- - Non WWW to WWW
- - WWW to non WWW
+- Redirect any request
 - Highly scalable rich content render (Markdown, JSON, JSONP, XML...)
 - Websocket API similar to socket.io
-- Hot Reload on source code changes
 - Typescript integration + Web IDE
-- Checks for updates at startup
-- Highly customizable
+- Optional updater
 - Feels like you used iris forever, thanks to its Fluent API
 - And more...
 

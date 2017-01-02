@@ -608,8 +608,8 @@ func (s *Framework) ListenLETSENCRYPT(addr string, cacheFileOptional ...string) 
 		s.Logger.Panic(err)
 	}
 
-	// starts a second server which listening on :80 to redirect all requests to the :443 (https://)
-	Proxy(":80", "https://"+addr)
+	// starts a second server which listening on HOST:80 to redirect all requests to the HTTPS://HOST:PORT
+	Proxy(ParseHostname(addr)+":80", "https://"+addr)
 	s.Must(s.Serve(ln))
 }
 
