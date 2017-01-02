@@ -29,7 +29,7 @@
 <a href="https://kataras.rocket.chat/channel/iris"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Chat"></a><br/>
 <br/>
 
-<b>Iris</b> is the fastest back-end web framework written in Go.
+<b>Iris</b> is the fastest HTTP/2 web framework written in Go.
 <br/>
 <b>Easy</b> to <a href="https://docs.iris-go.com">learn</a>  while it's highly customizable,
 ideally suited for <br/> both experienced and novice developers.<br/><br/>
