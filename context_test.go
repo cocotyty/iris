@@ -123,7 +123,7 @@ func TestContextURLParams(t *testing.T) {
 	iris.ResetDefault()
 	passedParams := map[string]string{"param1": "value1", "param2": "value2"}
 	iris.Get("/", func(ctx *iris.Context) {
-		params := ctx.URLParamsAsSingle()
+		params := ctx.URLParams()
 		ctx.JSON(iris.StatusOK, params)
 	})
 	e := httptest.New(iris.Default, t)

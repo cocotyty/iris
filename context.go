@@ -310,17 +310,12 @@ func (ctx *Context) URLParam(key string) string {
 	return ctx.Request.URL.Query().Get(key)
 }
 
-// URLParams returns a map of a list of each url(query) parameter
-func (ctx *Context) URLParams() map[string][]string {
-	return ctx.Request.URL.Query()
-}
-
-// URLParamsAsSingle returns a map of GET query parameters seperated by comma if more than one
+// URLParams returns a map of GET query parameters seperated by comma if more than one
 // it returns an empty map if nothing founds
-func (ctx *Context) URLParamsAsSingle() map[string]string {
+func (ctx *Context) URLParams() map[string]string {
 	values := map[string]string{}
 
-	q := ctx.URLParams()
+	q := ctx.URLParamsAsMulti()
 	if q != nil {
 		for k, v := range q {
 			values[k] = strings.Join(v, ",")
@@ -328,6 +323,11 @@ func (ctx *Context) URLParamsAsSingle() map[string]string {
 	}
 
 	return values
+}
+
+// URLParamsAsMulti returns a map of list contains the url get parameters
+func (ctx *Context) URLParamsAsMulti() map[string][]string {
+	return ctx.Request.URL.Query()
 }
 
 // URLParamInt returns the url query parameter as int value from a request ,  returns error on parse fail
