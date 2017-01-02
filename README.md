@@ -39,8 +39,6 @@ Besides the fact that Iris is faster than any alternatives you may met before, <
 If you're coming from <a href="https://nodejs.org/en/">Node.js</a> world, this is the <a href="https://github.com/expressjs/express">expressjs</a>  alternative for the <a href="https://golang.org">Go Programming Language.</a>
 <br/>
 
-<br/>
-<img src="https://raw.githubusercontent.com/smallnest/go-web-framework-benchmark/4db507a22c964c9bc9774c5b31afdc199a0fe8b7/benchmark.png" alt="Benchmark Wizzard July 21, 2016- Processing Time Horizontal Graph" />
 </p>
 
 
@@ -49,7 +47,7 @@ Feature Overview
 -----------
 
 - Focus on high performance
-- HTTP/2 support
+- HTTP/2 full support
 - Compatible with all net/http handlers
 - Automatically install and serve certificates from https://letsencrypt.org
 - Robust routing and middleware ecosystem
