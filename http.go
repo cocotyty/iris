@@ -1350,7 +1350,7 @@ func ParseScheme(domain string) string {
 	return SchemeHTTP
 }
 
-// ProxyHandler returns a new fasthttp handler which works as 'proxy', maybe doesn't suits you look its code before using that in production
+// ProxyHandler returns a new net/http.Handler which works as 'proxy', maybe doesn't suits you look its code before using that in production
 var ProxyHandler = func(redirectSchemeAndHost string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 

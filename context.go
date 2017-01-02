@@ -363,15 +363,7 @@ func (ctx *Context) FormValues() map[string][]string {
 
 // FormValue returns a single form value by its name/key
 func (ctx *Context) FormValue(name string) string {
-	values := ctx.FormValues()
-	if values == nil {
-		return ""
-	}
-	valMulty := values[name]
-	if len(valMulty) == 0 {
-		return ""
-	}
-	return strings.Join(valMulty, ",")
+	return ctx.Request.FormValue(name)
 }
 
 // PostValue returns a form's only-post value by its name
@@ -858,7 +850,7 @@ func (ctx *Context) ServeContent(content io.ReadSeeker, filename string, modtime
 // gzipCompression (bool)
 //
 // You can define your own "Content-Type" header also, after this function call
-// This function doesn't implement resuming (by range), use ctx.SendFile/fasthttp.ServeFileUncompressed(ctx.RequestCtx,path)/fasthttpServeFile(ctx.RequestCtx,path) instead
+// This function doesn't implement resuming (by range), use ctx.SendFile instead
 //
 // Use it when you want to serve css/js/... files to the client, for bigger files and 'force-download' use the SendFile
 func (ctx *Context) ServeFile(filename string, gzipCompression bool) error {

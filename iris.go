@@ -339,7 +339,7 @@ func (s *Framework) Must(err error) {
 
 // Build builds the whole framework's parts together
 // DO NOT CALL IT MANUALLY IF YOU ARE NOT:
-// SERVE IRIS BEHIND AN EXTERNAL CUSTOM fasthttp.Server, CAN BE CALLED ONCE PER IRIS INSTANCE FOR YOUR SAFETY
+// SERVE IRIS BEHIND AN EXTERNAL CUSTOM net/http.Server, CAN BE CALLED ONCE PER IRIS INSTANCE FOR YOUR SAFETY
 func Build() {
 	Default.Build()
 }
@@ -404,7 +404,7 @@ func (s *Framework) Build() {
 		if s.Router == nil {
 			// build and get the default mux' handler(*Context)
 			serve := s.mux.BuildHandler()
-			// build the fasthttp handler to bind it to the servers
+			// build the net/http.Handler to bind it to the servers
 			defaultHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := s.AcquireCtx(w, r)
 				serve(ctx)

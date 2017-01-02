@@ -824,14 +824,14 @@ You can read the full article [here](https://translate.google.com/translate?sl=a
 Testing
 ------------
 
-I recommend writing your API tests using this new library, [httpexpect](https://github.com/gavv/httpexpect) which supports Iris and fasthttp now, after my request [here](https://github.com/gavv/httpexpect/issues/2). You can find Iris examples [here](https://github.com/gavv/httpexpect/blob/master/_examples/iris_test.go), [here](https://github.com/kataras/iris/blob/master/http_test.go) and [here](https://github.com/kataras/iris/blob/master/context_test.go).
+I recommend writing your API tests using this new library, [httpexpect](https://github.com/gavv/httpexpect). You can find Iris examples [here](https://github.com/gavv/httpexpect/blob/master/_examples/iris_test.go), [here](https://github.com/kataras/iris/blob/master/http_test.go) and [here](https://github.com/kataras/iris/blob/master/context_test.go).
 
 Versioning
 ------------
 
 Current: **v6.0.0**
 
-Stable: **[v5 LTS](https://github.com/kataras/iris/tree/5.0.0)**
+Stable: **[v5/fasthttp LTS](https://github.com/kataras/iris/tree/5.0.0)**
 
 
 Iris is a **Community-Driven** Project, waiting for your suggestions and [feature requests](https://github.com/kataras/iris/issues?utf8=%E2%9C%93&q=label%3A%22feature%20request%22)!

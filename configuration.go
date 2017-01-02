@@ -54,7 +54,7 @@ type Configuration struct {
 	//    when calling the template helper '{{url }}'
 	//    *keep note that you can use {{urlpath }}) instead*
 	//
-	// Note: this is the main's server Host, you can setup unlimited number of fasthttp servers
+	// Note: this is the main's server Host, you can setup unlimited number of net/http servers
 	// listening to the $instance.Handler after the manually-called $instance.Build
 	//
 	// Default comes from iris.Listen/.Serve with iris' listeners (iris.TCP4/UNIX/TLS/LETSENCRYPT)
@@ -211,7 +211,7 @@ var (
 	//    when calling the template helper '{{url }}'
 	//    *keep note that you can use {{urlpath }}) instead*
 	//
-	// Note: this is the main's server Host, you can setup unlimited number of fasthttp servers
+	// Note: this is the main's server Host, you can setup unlimited number of net/http servers
 	// listening to the $instance.Handler after the manually-called $instance.Build
 	//
 	// Default comes from iris.Listen/.Serve with iris' listeners (iris.TCP4/UNIX/TLS/LETSENCRYPT)
@@ -430,11 +430,6 @@ var (
 	DefaultTimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 	// StaticCacheDuration expiration duration for INACTIVE file handlers, it's a global configuration field to all iris instances
 	StaticCacheDuration = 20 * time.Second
-	// CompressedFileSuffix is the suffix to add to the name of
-	// cached compressed file when using the .StaticFS function.
-	//
-	// Defaults to iris-fasthttp.gz
-	CompressedFileSuffix = "iris-fasthttp.gz"
 )
 
 // Default values for base Iris conf
