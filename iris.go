@@ -1158,11 +1158,12 @@ type (
 		Any(string, ...HandlerFunc)
 
 		// static content
+		StaticHandler(string, string, bool, bool) HandlerFunc
+		StaticWeb(string, string) RouteNameFunc
 		StaticServe(string, ...string) RouteNameFunc
 		StaticContent(string, string, []byte) RouteNameFunc
 		StaticEmbedded(string, string, func(string) ([]byte, error), func() []string) RouteNameFunc
 		Favicon(string, ...string) RouteNameFunc
-		///TODO: StaticWeb and Static methods align with net/http's standard way.
 
 		// templates
 		Layout(string) MuxAPI // returns itself
@@ -1887,6 +1888,91 @@ func (api *muxAPI) Favicon(favPath string, requestPath ...string) RouteNameFunc 
 	}
 
 	return api.registerResourceRoute(reqPath, h)
+}
+
+// StripPrefix returns a handler that serves HTTP requests
+// by removing the given prefix from the request URL's Path
+// and invoking the handler h. StripPrefix handles a
+// request for a path that doesn't begin with prefix by
+// replying with an HTTP 404 not found error.
+func StripPrefix(prefix string, h HandlerFunc) HandlerFunc {
+	if prefix == "" {
+		return h
+	}
+	return func(ctx *Context) {
+		if p := strings.TrimPrefix(ctx.Request.URL.Path, prefix); len(p) < len(ctx.Request.URL.Path) {
+			ctx.Request.URL.Path = p
+			h(ctx)
+		} else {
+			ctx.NotFound()
+		}
+	}
+}
+
+// StaticHandler returns a new Handler which serves static files
+func StaticHandler(reqPath string, systemPath string, showList bool, enableGzip bool) HandlerFunc {
+	return Default.StaticHandler(reqPath, systemPath, showList, enableGzip)
+}
+
+// StaticHandler returns a new Handler which serves static files
+func (api *muxAPI) StaticHandler(reqPath string, systemPath string, showList bool, enableGzip bool) HandlerFunc {
+	h := NewStaticHandlerBuilder(systemPath).
+		Path(api.relativePath + reqPath).
+		Listing(showList).
+		Gzip(enableGzip).
+		Build()
+
+	managedStaticHandler := func(ctx *Context) {
+		h(ctx)
+		prevStatusCode := ctx.ResponseWriter.StatusCode()
+		if prevStatusCode >= 400 { // we have an error
+			// fire the custom error handler
+			api.mux.fireError(prevStatusCode, ctx)
+		}
+		// go to the next middleware
+		if ctx.Pos < len(ctx.Middleware)-1 {
+			ctx.Next()
+		}
+	}
+	return managedStaticHandler
+}
+
+// StaticWeb returns a handler that serves HTTP requests
+// with the contents of the file system rooted at directory.
+//
+// first parameter: the route path
+// second parameter: the system directory
+// for more options look iris.StaticHandler.
+//
+//     iris.Static("/", "./static")
+//
+// As a special case, the returned file server redirects any request
+// ending in "/index.html" to the same path, without the final
+// "index.html".
+//
+// StaticWeb calls the StaticHandler(reqPath, systemPath, listingDirectories: false, gzip: false ).
+func StaticWeb(reqPath string, systemPath string) RouteNameFunc {
+	return Default.StaticWeb(reqPath, systemPath)
+}
+
+// StaticWeb returns a handler that serves HTTP requests
+// with the contents of the file system rooted at directory.
+//
+// first parameter: the route path
+// second parameter: the system directory
+// for more options look iris.StaticHandler.
+//
+//     iris.Static("/", "./static")
+//
+// As a special case, the returned file server redirects any request
+// ending in "/index.html" to the same path, without the final
+// "index.html".
+//
+// StaticWeb calls the StaticHandler(reqPath, systemPath, listingDirectories: false, gzip: false ).
+func (api *muxAPI) StaticWeb(reqPath string, systemPath string) RouteNameFunc {
+	h := api.StaticHandler(reqPath, systemPath, false, false)
+	routePath := validateWildcard(reqPath, "file")
+	return api.registerResourceRoute(routePath, h)
 }
 
 // Layout oerrides the parent template layout with a more specific layout for this Party

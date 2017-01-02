@@ -1048,8 +1048,7 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 				//ctx.Request.Header.SetUserAgentBytes(DefaultUserAgent)
 				context.Do()
 				return
-			} else if mustRedirect && mux.correctPath && context.Method() == MethodConnect {
-
+			} else if mustRedirect && mux.correctPath { // && context.Method() == MethodConnect {
 				reqPath := routePath
 				pathLen := len(reqPath)
 
@@ -1060,17 +1059,17 @@ func (mux *serveMux) BuildHandler() HandlerFunc {
 						//it has path prefix, it doesn't ends with / and it hasn't be found, then just add the slash
 						reqPath = reqPath + "/"
 					}
-					context.Request.URL.Path = reqPath
-					urlToRedirect := context.Request.RequestURI
 
-					statisForRedirect := StatusMovedPermanently //	StatusMovedPermanently, this document is obselte, clients caches this.
+					urlToRedirect := reqPath
+
+					statusForRedirect := StatusMovedPermanently //	StatusMovedPermanently, this document is obselte, clients caches this.
 					if tree.method == MethodPost ||
 						tree.method == MethodPut ||
 						tree.method == MethodDelete {
-						statisForRedirect = StatusTemporaryRedirect //	To maintain POST data
+						statusForRedirect = StatusTemporaryRedirect //	To maintain POST data
 					}
 
-					context.Redirect(urlToRedirect, statisForRedirect)
+					context.Redirect(urlToRedirect, statusForRedirect)
 					// RFC2616 recommends that a short note "SHOULD" be included in the
 					// response because older user agents may not understand 301/307.
 					// Shouldn't send the response for POST or HEAD; that leaves GET.
@@ -1375,16 +1374,6 @@ var ProxyHandler = func(redirectSchemeAndHost string) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, redirectTo, StatusMovedPermanently)
-
-		/*
-			if redirectSchemeAndHost+r.RequestURI == r.URL.String() {
-				println("BUG, REDIRECT TO ITSELF. FROM: " + r.URL.String() + " TO: " + redirectSchemeAndHost + r.RequestURI)
-				return
-			}
-			urlToRedirect := redirectSchemeAndHost + r.RequestURI
-
-			w.Header().Set("Location", urlToRedirect)
-			w.WriteHeader(StatusMovedPermanently)*/
 	}
 }
 

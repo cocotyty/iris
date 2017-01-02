@@ -2,12 +2,39 @@ package iris
 
 import (
 	"bufio"
+	"github.com/kataras/go-errors"
+	"github.com/kataras/go-fs"
+
+	"github.com/klauspost/compress/gzip"
 	"net"
 	"net/http"
 	"sync"
-
-	"github.com/kataras/go-errors"
 )
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	http.Flusher
+	gzipWriter *gzip.Writer
+}
+
+var gzpool = sync.Pool{New: func() interface{} { return &gzipResponseWriter{} }}
+
+func acquireGzipResponseWriter(underline http.ResponseWriter) *gzipResponseWriter {
+	w := gzpool.Get().(*gzipResponseWriter)
+	w.ResponseWriter = underline
+	w.gzipWriter = fs.AcquireGzipWriter(w.ResponseWriter)
+	return w
+}
+
+func releaseGzipResponseWriter(w *gzipResponseWriter) {
+	fs.ReleaseGzipWriter(w.gzipWriter)
+	gzpool.Put(w)
+}
+
+// Write compresses and writes that data to the underline response writer
+func (w *gzipResponseWriter) Write(contents []byte) (int, error) {
+	return w.gzipWriter.Write(contents)
+}
 
 var rpool = sync.Pool{New: func() interface{} { return &ResponseWriter{} }}
 
@@ -175,11 +202,9 @@ func (w *ResponseWriter) flushResponse() {
 		w.beforeFlush()
 	}
 
-	if w.statusCode == 0 { // if not setted set it here
-		w.statusCode = StatusOK
+	if w.statusCode > 0 {
+		w.ResponseWriter.WriteHeader(w.statusCode)
 	}
-
-	w.ResponseWriter.WriteHeader(w.statusCode)
 
 	if w.headers != nil {
 		for k, values := range w.headers {
@@ -192,11 +217,11 @@ func (w *ResponseWriter) flushResponse() {
 	if len(w.chunks) > 0 {
 		w.ResponseWriter.Write(w.chunks)
 	}
-
 }
 
 // Flush sends any buffered data to the client.
 func (w *ResponseWriter) Flush() {
+	w.flushResponse()
 	// The Flusher interface is implemented by ResponseWriters that allow
 	// an HTTP handler to flush buffered data to the client.
 	//
@@ -211,6 +236,12 @@ func (w *ResponseWriter) Flush() {
 	if fl, isFlusher := w.ResponseWriter.(http.Flusher); isFlusher {
 		fl.Flush()
 	}
+}
+
+// Gzip converts this response writer to a gzip writer
+// See that article for more: https://betterexplained.com/articles/how-to-optimize-your-site-with-gzip-compression/
+func (w *ResponseWriter) Gzip() {
+
 }
 
 // clone returns a clone of this response writer

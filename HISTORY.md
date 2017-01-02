@@ -11,13 +11,26 @@ to make on your app if you used iris before. If you don't find something you use
 
 - `context.Write(string, ...string)` -> `context.Writef(string, ...string)` | Write now has this form: Write([]byte) (int,error). All other write methods didn't changed.
 
-- `context.GetFlash/SetFlash` -> `context.Session().GetFlash/GetFlashString/SetFlash/DeleteFlash/ClearFlashes/Flashes/HasFlash`
+- `context.GetFlash/SetFlash` -> `context.Session().GetFlash/GetFlashString/SetFlash/DeleteFlash/ClearFlashes/Flashes/HasFlash`.
 
-- `context.FormValueString(string)` -> `context.FormValue(string)`
-- `context.PathString()` -> `context.Path()`
-- `context.HostString()` -> `context.Host()`
+- `context.FormValueString(string)` -> `context.FormValue(string)`.
+- `context.PathString()` -> `context.Path()`.
+- `context.HostString()` -> `context.Host()`.
 
 - `iris.Config.DisablePathEscape` was removed because now we have two methods to get a parameter `context.Param/ParamDecoded`.
+
+
+**Static methods changes**
+
+- `iris.StaticServe/StaticContent/StaticEmbedded/Favicon stay as they were before this version.`.
+
+-	`iris.StaticHandler(string, int, bool, bool, []string) HandlerFunc` -> `iris.StaticHandler(reqPath string, systemPath string, showList bool, enableGzip bool) HandlerFunc`.
+
+
+- `iris.StaticWeb(string, string, int) RouteNameFunc` -> `iris.StaticWeb(routePath string, systemPath string) RouteNameFunc`.
+- `iris.Static` -> removed and joined to the new iris.StaticHandler
+- `iris.StaticFS` -> removed and joined into the new `iris.StaticWeb`.
+
 
 > NOTE: THIS IS NOT THE COMPLETE LIST YET, I have to fill some static files helpers before pushing the new version.
 
