@@ -60,8 +60,8 @@ I'm  grateful for all the generous donations. Iris is fully funded by these dona
 #### Report, so far
 
 - 13 EUR for the domain, [iris-go.com](https://iris-go.com)
+- **Thanks** to all of **You**, 424 EUR donated to [Holy Metropolis of Ioannina](http://www.imioanninon.gr/main/) for clothes, foods and medications for our fellow human beings.
 
-**Available**: VAT(50) + VAT(20) + VAT(20) + VAT(50) + VAT(6) + VAT(20) + VAT(100) + VAT(20) + VAT(20) + VAT(50) + VAT(30) + VAT(50) + VAT(20) + VAT(5) - 13 = 47,45 + 18,97 + 18,61 + 47,05 + 5,34 + 18,97 + 98,04 + 18,97 + 18,61 + 47,95 + 28,24 + 47,05 + 18,97 + 4,59 - 13 =
-424,92 EUR
 
-**All donations so far and until the end of this month(01/01/2017), will go back to the people who need them most, they are not enough but I will try to raise the amount by myself too.**
+**Available**: VAT(50) + VAT(20) + VAT(20) + VAT(50) + VAT(6) + VAT(20) + VAT(100) + VAT(20) + VAT(20) + VAT(50) + VAT(30) + VAT(50) + VAT(20) + VAT(5) - 13 = 47,45 + 18,97 + 18,61 + 47,05 + 5,34 + 18,97 + 98,04 + 18,97 + 18,61 + 47,95 + 28,24 + 47,05 + 18,97 + 4,59 - 13 - 424 =
+424,92 EUR - 424 = **0,92**

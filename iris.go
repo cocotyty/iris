@@ -1944,7 +1944,7 @@ func (api *muxAPI) StaticHandler(reqPath string, systemPath string, showList boo
 // second parameter: the system directory
 // for more options look iris.StaticHandler.
 //
-//     iris.Static("/", "./static")
+//     iris.StaticWeb("/static", "./static")
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final
@@ -1962,7 +1962,7 @@ func StaticWeb(reqPath string, systemPath string) RouteNameFunc {
 // second parameter: the system directory
 // for more options look iris.StaticHandler.
 //
-//     iris.Static("/", "./static")
+//     iris.StaticWeb("/static", "./static")
 //
 // As a special case, the returned file server redirects any request
 // ending in "/index.html" to the same path, without the final
