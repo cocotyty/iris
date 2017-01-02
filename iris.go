@@ -169,34 +169,80 @@ type (
 		Cache(HandlerFunc, time.Duration) HandlerFunc
 	}
 
-	// Framework is our God |\| Google.Search('Greek mythology Iris')
-	//
-	// Implements the FrameworkAPI
-	Framework struct {
-		*muxAPI
-		// HTTP Server runtime fields is the iris' defined main server, developer can use unlimited number of servers
-		// note: they're available after .Build, and .Serve/Listen/ListenTLS/ListenLETSENCRYPT/ListenUNIX
-		ln        net.Listener
-		srv       *http.Server
-		Available chan bool
-		//
-		// Router field which can change the default iris' mux behavior
-		// if you want to get benefit with iris' context make use of:
-		// ctx:= iris.AcquireCtx(http.ResponseWriter, *http.Request) to get the context at the beginning of your handler
-		// iris.ReleaseCtx(ctx) to release/put the context to the pool, at the very end of your custom handler.
-		Router http.Handler
+	// MuxAPI the visible api for the serveMux
+	MuxAPI interface {
+		Party(string, ...HandlerFunc) MuxAPI
+		// middleware serial, appending
+		Use(...Handler) MuxAPI
+		UseFunc(...HandlerFunc) MuxAPI
+		Done(...Handler) MuxAPI
+		DoneFunc(...HandlerFunc) MuxAPI
 
-		contextPool sync.Pool
-		once        sync.Once
-		Config      *Configuration
-		sessions    sessions.Sessions
-		serializers serializer.Serializers
-		templates   *templateEngines
-		Logger      *log.Logger
-		Plugins     PluginContainer
-		Websocket   *WebsocketServer
+		// main handlers
+		Handle(string, string, ...Handler) RouteNameFunc
+		HandleFunc(string, string, ...HandlerFunc) RouteNameFunc
+		API(string, HandlerAPI, ...HandlerFunc)
+
+		// http methods
+		Get(string, ...HandlerFunc) RouteNameFunc
+		Post(string, ...HandlerFunc) RouteNameFunc
+		Put(string, ...HandlerFunc) RouteNameFunc
+		Delete(string, ...HandlerFunc) RouteNameFunc
+		Connect(string, ...HandlerFunc) RouteNameFunc
+		Head(string, ...HandlerFunc) RouteNameFunc
+		Options(string, ...HandlerFunc) RouteNameFunc
+		Patch(string, ...HandlerFunc) RouteNameFunc
+		Trace(string, ...HandlerFunc) RouteNameFunc
+		Any(string, ...HandlerFunc)
+
+		// static content
+		StaticServe(string, ...string) RouteNameFunc
+		StaticContent(string, string, []byte) RouteNameFunc
+		StaticEmbedded(string, string, func(string) ([]byte, error), func() []string) RouteNameFunc
+		Favicon(string, ...string) RouteNameFunc
+		// static file system
+		StaticHandler(string, string, bool, bool) HandlerFunc
+		StaticWeb(string, string) RouteNameFunc
+
+		// party layout for template engines
+		Layout(string) MuxAPI
+
+		// errors
+		OnError(int, HandlerFunc)
+		EmitError(int, *Context)
 	}
+
+	// RouteNameFunc the func returns from the MuxAPi's methods, optionally sets the name of the Route (*route)
+	RouteNameFunc func(string)
 )
+
+// Framework is our God |\| Google.Search('Greek mythology Iris')
+//
+// Implements the FrameworkAPI
+type Framework struct {
+	*muxAPI
+	// HTTP Server runtime fields is the iris' defined main server, developer can use unlimited number of servers
+	// note: they're available after .Build, and .Serve/Listen/ListenTLS/ListenLETSENCRYPT/ListenUNIX
+	ln        net.Listener
+	srv       *http.Server
+	Available chan bool
+	//
+	// Router field which can change the default iris' mux behavior
+	// if you want to get benefit with iris' context make use of:
+	// ctx:= iris.AcquireCtx(http.ResponseWriter, *http.Request) to get the context at the beginning of your handler
+	// iris.ReleaseCtx(ctx) to release/put the context to the pool, at the very end of your custom handler.
+	Router http.Handler
+
+	contextPool sync.Pool
+	once        sync.Once
+	Config      *Configuration
+	sessions    sessions.Sessions
+	serializers serializer.Serializers
+	templates   *templateEngines
+	Logger      *log.Logger
+	Plugins     PluginContainer
+	Websocket   *WebsocketServer
+}
 
 var _ FrameworkAPI = &Framework{}
 
@@ -1123,64 +1169,14 @@ func (s *Framework) Cache(bodyHandler HandlerFunc, expiration time.Duration) Han
 // ----------------------------------MuxAPI implementation------------------------------
 // -------------------------------------------------------------------------------------
 // -------------------------------------------------------------------------------------
-type (
-	// RouteNameFunc the func returns from the MuxAPi's methods, optionally sets the name of the Route (*route)
-	RouteNameFunc func(string)
-	// MuxAPI the visible api for the serveMux
-	MuxAPI interface {
-		Party(string, ...HandlerFunc) MuxAPI
-		// middleware serial, appending
-		Use(...Handler) MuxAPI
-		UseFunc(...HandlerFunc) MuxAPI
-		// returns itself, because at the most-cases used like .Layout, at the first-line party's declaration
-		Done(...Handler) MuxAPI
-		DoneFunc(...HandlerFunc) MuxAPI
 
-		// transactions
-		// 	UseTransaction(...TransactionFunc) MuxAPI
-		//	DoneTransaction(...TransactionFunc) MuxAPI
-
-		// main handlers
-		Handle(string, string, ...Handler) RouteNameFunc
-		HandleFunc(string, string, ...HandlerFunc) RouteNameFunc
-		API(string, HandlerAPI, ...HandlerFunc)
-
-		// http methods
-		Get(string, ...HandlerFunc) RouteNameFunc
-		Post(string, ...HandlerFunc) RouteNameFunc
-		Put(string, ...HandlerFunc) RouteNameFunc
-		Delete(string, ...HandlerFunc) RouteNameFunc
-		Connect(string, ...HandlerFunc) RouteNameFunc
-		Head(string, ...HandlerFunc) RouteNameFunc
-		Options(string, ...HandlerFunc) RouteNameFunc
-		Patch(string, ...HandlerFunc) RouteNameFunc
-		Trace(string, ...HandlerFunc) RouteNameFunc
-		Any(string, ...HandlerFunc)
-
-		// static content
-		StaticHandler(string, string, bool, bool) HandlerFunc
-		StaticWeb(string, string) RouteNameFunc
-		StaticServe(string, ...string) RouteNameFunc
-		StaticContent(string, string, []byte) RouteNameFunc
-		StaticEmbedded(string, string, func(string) ([]byte, error), func() []string) RouteNameFunc
-		Favicon(string, ...string) RouteNameFunc
-
-		// templates
-		Layout(string) MuxAPI // returns itself
-
-		// errors
-		OnError(int, HandlerFunc)
-		EmitError(int, *Context)
-	}
-
-	muxAPI struct {
-		mux            *serveMux
-		doneMiddleware Middleware
-		apiRoutes      []*route // used to register the .Done middleware
-		relativePath   string
-		middleware     Middleware
-	}
-)
+type muxAPI struct {
+	mux            *serveMux
+	doneMiddleware Middleware
+	apiRoutes      []*route // used to register the .Done middleware
+	relativePath   string
+	middleware     Middleware
+}
 
 var _ MuxAPI = &muxAPI{}
 

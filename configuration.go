@@ -2,9 +2,6 @@ package iris
 
 import (
 	"crypto/tls"
-	"github.com/imdario/mergo"
-	"github.com/kataras/go-options"
-	"github.com/kataras/go-sessions"
 	"io"
 	"net"
 	"net/http"
@@ -12,6 +9,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/imdario/mergo"
+	"github.com/kataras/go-options"
+	"github.com/kataras/go-sessions"
 )
 
 type (

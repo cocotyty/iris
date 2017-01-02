@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/gavv/httpexpect"
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/httptest"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gavv/httpexpect"
+	"github.com/kataras/iris"
+	"github.com/kataras/iris/httptest"
 )
 
 // White-box testing *

@@ -1,9 +1,10 @@
 package iris
 
 import (
+	"io"
+
 	"github.com/kataras/go-fs"
 	"github.com/kataras/go-template"
-	"io"
 )
 
 const (

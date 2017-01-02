@@ -972,7 +972,7 @@ License
 ------------
 
 Unless otherwise noted, the `iris` source files are distributed
-under the BSD-3 Clause license found in the [LICENSE file](LICENSE).
+under the MIT License found in the [LICENSE file](LICENSE).
 
 
 [Chat]: https://kataras.rocket.chat/channel/iris

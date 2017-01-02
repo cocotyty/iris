@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"reflect"
@@ -16,14 +17,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/iris-contrib/formBinder"
 	"github.com/kataras/go-errors"
 	"github.com/kataras/go-fs"
 	"github.com/kataras/go-sessions"
-	"net/http"
 )
 
 const (
@@ -150,6 +149,12 @@ type (
 	}
 )
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------Handler(s) Execution------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
 // Do calls the first handler only, it's like Next with negative pos, used only on Router&MemoryRouter
 func (ctx *Context) Do() {
 	ctx.Pos = 0
@@ -164,15 +169,12 @@ func (ctx *Context) Next() {
 	if ctx.Pos < len(ctx.Middleware) {
 		ctx.Middleware[ctx.Pos].Serve(ctx)
 	}
-
 }
 
 // StopExecution just sets the .pos to 255 in order to  not move to the next middlewares(if any)
 func (ctx *Context) StopExecution() {
 	ctx.Pos = stopExecutionPosition
 }
-
-//
 
 // IsStopped checks and returns true if the current position of the Context is 255, means that the StopExecution has called
 func (ctx *Context) IsStopped() bool {
@@ -184,62 +186,17 @@ func (ctx *Context) GetHandlerName() string {
 	return runtime.FuncForPC(reflect.ValueOf(ctx.Middleware[len(ctx.Middleware)-1]).Pointer()).Name()
 }
 
-/* Request */
-
-// URLParam returns the get parameter from a request , if any
-func (ctx *Context) URLParam(key string) string {
-	return ctx.Request.URL.Query().Get(key)
-}
-
-// URLParams returns a map of a list of each url(query) parameter
-func (ctx *Context) URLParams() map[string][]string {
-	return ctx.Request.URL.Query()
-}
-
-// URLParamsAsSingle returns a map of GET query parameters seperated by comma if more than one
-// it returns an empty map if nothing founds
-func (ctx *Context) URLParamsAsSingle() map[string]string {
-	values := map[string]string{}
-
-	q := ctx.URLParams()
-	if q != nil {
-		for k, v := range q {
-			values[k] = strings.Join(v, ",")
-		}
-	}
-
-	return values
-}
-
-// URLParamInt returns the url query parameter as int value from a request ,  returns error on parse fail
-func (ctx *Context) URLParamInt(key string) (int, error) {
-	return strconv.Atoi(ctx.URLParam(key))
-}
-
-// URLParamInt64 returns the url query parameter as int64 value from a request ,  returns error on parse fail
-func (ctx *Context) URLParamInt64(key string) (int64, error) {
-	return strconv.ParseInt(ctx.URLParam(key), 10, 64)
-}
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------Request URL, Method, IP & Headers getters---------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 
 // Method returns the http request method
 // same as *http.Request.Method
 func (ctx *Context) Method() string {
 	return ctx.Request.Method
 }
-
-// // MethodString returns the HTTP Method
-// //
-// // Deprecated: use ctx.Request.Method instead
-// func (ctx *Context) MethodString() string {
-// 	return ctx.Request.Method
-// }
-//
-// // HostString returns the Host of the request
-// //
-// // Deprecated: use ctx.Request.Host instead
-// func (ctx *Context) HostString() string {
-// 	return ctx.Request.Host
-// }
 
 // Host returns the host part of the current url
 func (ctx *Context) Host() string {
@@ -249,6 +206,16 @@ func (ctx *Context) Host() string {
 // ServerHost returns the server host taken by *http.Request.Host
 func (ctx *Context) ServerHost() string {
 	return ctx.Request.Host
+}
+
+// Subdomain returns the subdomain (string) of this request, if any
+func (ctx *Context) Subdomain() (subdomain string) {
+	host := ctx.Host()
+	if index := strings.IndexByte(host, '.'); index > 0 {
+		subdomain = host[0:index]
+	}
+
+	return
 }
 
 // VirtualHostname returns the hostname that user registers, host path maybe differs from the real which is HostString, which taken from a net.listener
@@ -332,6 +299,47 @@ func (ctx *Context) IsAjax() bool {
 	return ctx.RequestHeader("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest"
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------GET & POST arguments------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
+// URLParam returns the get parameter from a request , if any
+func (ctx *Context) URLParam(key string) string {
+	return ctx.Request.URL.Query().Get(key)
+}
+
+// URLParams returns a map of a list of each url(query) parameter
+func (ctx *Context) URLParams() map[string][]string {
+	return ctx.Request.URL.Query()
+}
+
+// URLParamsAsSingle returns a map of GET query parameters seperated by comma if more than one
+// it returns an empty map if nothing founds
+func (ctx *Context) URLParamsAsSingle() map[string]string {
+	values := map[string]string{}
+
+	q := ctx.URLParams()
+	if q != nil {
+		for k, v := range q {
+			values[k] = strings.Join(v, ",")
+		}
+	}
+
+	return values
+}
+
+// URLParamInt returns the url query parameter as int value from a request ,  returns error on parse fail
+func (ctx *Context) URLParamInt(key string) (int, error) {
+	return strconv.Atoi(ctx.URLParam(key))
+}
+
+// URLParamInt64 returns the url query parameter as int64 value from a request ,  returns error on parse fail
+func (ctx *Context) URLParamInt64(key string) (int64, error) {
+	return strconv.ParseInt(ctx.URLParam(key), 10, 64)
+}
+
 func (ctx *Context) askParseForm() error {
 	if ctx.Request.Form == nil {
 		if err := ctx.Request.ParseForm(); err != nil {
@@ -380,15 +388,11 @@ func (ctx *Context) FormFile(key string) (multipart.File, *multipart.FileHeader,
 	return ctx.Request.FormFile(key)
 }
 
-// Subdomain returns the subdomain (string) of this request, if any
-func (ctx *Context) Subdomain() (subdomain string) {
-	host := ctx.Host()
-	if index := strings.IndexByte(host, '.'); index > 0 {
-		subdomain = host[0:index]
-	}
-
-	return
-}
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------Request Body Binders/Readers----------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 
 // BodyDecoder is an interface which any struct can implement in order to customize the decode action
 // from ReadJSON and ReadXML
@@ -477,6 +481,11 @@ func (ctx *Context) ReadForm(formObject interface{}) error {
 	return errReadBody.With(formBinder.Decode(values, formObject))
 }
 
+// ResetBody resets the body of the response
+func (ctx *Context) ResetBody() {
+	ctx.ResponseWriter.ResetBody()
+}
+
 /* Response */
 
 // SetContentType sets the response writer's header key 'Content-Type' to a given value(s)
@@ -529,6 +538,12 @@ func (ctx *Context) RedirectTo(routeName string, args ...interface{}) {
 	}
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------(Custom) Errors-----------------------------------------
+// ----------------------Look iris.OnError/EmitError for more---------------------------
+// -------------------------------------------------------------------------------------
+
 // NotFound emits an error 404 to the client, using the custom http errors
 // if no custom errors provided then it sends the default error message
 func (ctx *Context) NotFound() {
@@ -547,10 +562,11 @@ func (ctx *Context) EmitError(statusCode int) {
 	ctx.StopExecution()
 }
 
-// ResetBody resets the body of the response
-func (ctx *Context) ResetBody() {
-	ctx.ResponseWriter.ResetBody()
-}
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------Raw write methods---------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 
 // Write writes the contents to the response writer.
 //
@@ -578,6 +594,16 @@ func (ctx *Context) SetBodyString(s string) {
 	ctx.ResponseWriter.SetBodyString(s)
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------Context's gzip inline response writer ----------------------
+// ---------------------Look template.go & iris.go for more options---------------------
+// -------------------------------------------------------------------------------------
+
+var (
+	errClientDoesNotSupportGzip = errors.New("Client doesn't supports gzip compression")
+)
+
 func (ctx *Context) clientAllowsGzip() bool {
 	if h := ctx.RequestHeader(acceptEncodingHeader); h != "" {
 		for _, v := range strings.Split(h, ";") {
@@ -588,24 +614,6 @@ func (ctx *Context) clientAllowsGzip() bool {
 	}
 	return false
 }
-
-func copyZeroAlloc(w io.Writer, r io.Reader) (int64, error) {
-	vbuf := copyBufPool.Get()
-	buf := vbuf.([]byte)
-	n, err := io.CopyBuffer(w, r, buf)
-	copyBufPool.Put(vbuf)
-	return n, err
-}
-
-var copyBufPool = sync.Pool{
-	New: func() interface{} {
-		return make([]byte, 4096)
-	},
-}
-
-var (
-	errClientDoesNotSupportGzip = errors.New("Client doesn't supports gzip compression")
-)
 
 // WriteGzip accepts bytes, which are compressed to gzip format and sent to the client.
 // returns the number of bytes written and an error ( if the client doesn' supports gzip compression)
@@ -638,6 +646,12 @@ func (ctx *Context) TryWriteGzip(b []byte) (int, error) {
 	}
 	return n, err
 }
+
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------------------------Render and powerful content negotiation-----------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
 
 // renderSerialized renders contents with a serializer with status OK which you can change using RenderWithStatus or ctx.SetStatusCode(iris.StatusCode)
 func (ctx *Context) renderSerialized(contentType string, obj interface{}, options ...map[string]interface{}) error {
@@ -773,6 +787,12 @@ func (ctx *Context) Markdown(status int, markdown string) {
 	ctx.HTML(status, ctx.MarkdownString(markdown))
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// --------------------Static content serve by context implementation-------------------
+// --------------------Look iris.go for more useful Static web system methods-----------
+// -------------------------------------------------------------------------------------
+
 // staticCachePassed checks the IfModifiedSince header and
 // returns true if (client-side) duration has expired
 func (ctx *Context) staticCachePassed(modtime time.Time) bool {
@@ -867,43 +887,11 @@ func (ctx *Context) SendFile(filename string, destinationName string) {
 	ctx.ResponseWriter.Header().Set(contentDisposition, "attachment;filename="+destinationName)
 }
 
-// Stream same as StreamWriter
-// func (ctx *Context) Stream(cb func(writer *bufio.Writer)) {
-// 	ctx.StreamWriter(cb)
-// }
-
-// StreamWriter registers the given stream writer for populating
-// response body.
-//
-//
-// This function may be used in the following cases:
-//
-//     * if response body is too big (more than 10MB).
-//     * if response body is streamed from slow external sources.
-//     * if response body must be streamed to the client in chunks.
-//     (aka `http server push`).
-//
-// See also the StreamReader
-// func (ctx *Context) StreamWriter(cb func(writer *bufio.Writer)) {
-// 	ctx.RequestCtx.SetBodyStreamWriter(cb)
-// }
-
-// StreamReader sets response body stream and, optionally body size.
-//
-// If bodySize is >= 0, then the bodyStream must provide exactly bodySize bytes
-// before returning io.EOF.
-//
-// If bodySize < 0, then bodyStream is read until io.EOF.
-//
-// bodyStream.Close() is called after finishing reading all body data
-// if it implements io.Closer.
-//
-// See also the StreamWriter
-// func (ctx *Context) StreamReader(bodyStream io.Reader, bodySize int) {
-// 	ctx.RequestCtx.Response.SetBodyStream(bodyStream, bodySize)
-// }
-
-/* Storage */
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// --------------------------------Storage----------------------------------------------
+// -----------------------User Values &  Path parameters--------------------------------
+// -------------------------------------------------------------------------------------
 
 // ValuesLen returns the total length of the user values storage, some of them maybe path parameters
 func (ctx *Context) ValuesLen() (n int) {
@@ -1026,6 +1014,121 @@ func (ctx *Context) ParamsSentence() string {
 
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// -----------https://github.com/golang/net/blob/master/context/context.go--------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
+// Deadline returns the time when work done on behalf of this context
+// should be canceled.  Deadline returns ok==false when no deadline is
+// set.  Successive calls to Deadline return the same results.
+func (ctx *Context) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+// Done returns a channel that's closed when work done on behalf of this
+// context should be canceled.  Done may return nil if this context can
+// never be canceled.  Successive calls to Done return the same value.
+//
+// WithCancel arranges for Done to be closed when cancel is called;
+// WithDeadline arranges for Done to be closed when the deadline
+// expires; WithTimeout arranges for Done to be closed when the timeout
+// elapses.
+//
+// Done is provided for use in select statements:
+//
+//  // Stream generates values with DoSomething and sends them to out
+//  // until DoSomething returns an error or ctx.Done is closed.
+//  func Stream(ctx context.Context, out chan<- Value) error {
+//  	for {
+//  		v, err := DoSomething(ctx)
+//  		if err != nil {
+//  			return err
+//  		}
+//  		select {
+//  		case <-ctx.Done():
+//  			return ctx.Err()
+//  		case out <- v:
+//  		}
+//  	}
+//  }
+//
+// See http://blog.golang.org/pipelines for more examples of how to use
+// a Done channel for cancelation.
+func (ctx *Context) Done() <-chan struct{} {
+	return nil
+}
+
+// Err returns a non-nil error value after Done is closed.  Err returns
+// Canceled if the context was canceled or DeadlineExceeded if the
+// context's deadline passed.  No other values for Err are defined.
+// After Done is closed, successive calls to Err return the same value.
+func (ctx *Context) Err() error {
+	return nil
+}
+
+// Value returns the value associated with this context for key, or nil
+// if no value is associated with key.  Successive calls to Value with
+// the same key returns the same result.
+//
+// Use context values only for request-scoped data that transits
+// processes and API boundaries, not for passing optional parameters to
+// functions.
+//
+// A key identifies a specific value in a Context.  Functions that wish
+// to store values in Context typically allocate a key in a global
+// variable then use that key as the argument to context.WithValue and
+// Context.Value.  A key can be any type that supports equality;
+// packages should define keys as an unexported type to avoid
+// collisions.
+//
+// Packages that define a Context key should provide type-safe accessors
+// for the values stores using that key:
+//
+// 	// Package user defines a User type that's stored in Contexts.
+// 	package user
+//
+// 	import "golang.org/x/net/context"
+//
+// 	// User is the type of value stored in the Contexts.
+// 	type User struct {...}
+//
+// 	// key is an unexported type for keys defined in this package.
+// 	// This prevents collisions with keys defined in other packages.
+// 	type key int
+//
+// 	// userKey is the key for user.User values in Contexts.  It is
+// 	// unexported; clients use user.NewContext and user.FromContext
+// 	// instead of using this key directly.
+// 	var userKey key = 0
+//
+// 	// NewContext returns a new Context that carries value u.
+// 	func NewContext(ctx context.Context, u *User) context.Context {
+// 		return context.WithValue(ctx, userKey, u)
+// 	}
+//
+// 	// FromContext returns the User value stored in ctx, if any.
+// 	func FromContext(ctx context.Context) (*User, bool) {
+// 		u, ok := ctx.Value(userKey).(*User)
+// 		return u, ok
+// 	}
+func (ctx *Context) Value(key interface{}) interface{} {
+	if key == 0 {
+		return ctx.Request
+	}
+	if k, ok := key.(string); ok {
+		return ctx.GetString(k)
+	}
+	return nil
+}
+
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// --------------------------------Session & Cookies------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
 // VisitAllCookies takes a visitor which loops on each (request's) cookie key and value
 func (ctx *Context) VisitAllCookies(visitor func(key string, value string)) {
 	for _, cookie := range ctx.Request.Cookies() {
@@ -1115,6 +1218,12 @@ func (ctx *Context) MaxAge() int64 {
 	return -1
 }
 
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+// --------------------------------Transactions-----------------------------------------
+// -------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
 // skipTransactionsContextKey set this to any value to stop executing next transactions
 // it's a context-key in order to be used from anywhere, set it by calling the SkipTransactions()
 const skipTransactionsContextKey = "__IRIS_TRANSACTIONS_SKIP___"
@@ -1133,23 +1242,6 @@ func (ctx *Context) TransactionsSkipped() bool {
 	return false
 }
 
-// // TransactionFunc is just a func(scope *TransactionScope)
-// // used to register transaction(s) to a handler's context.
-// type TransactionFunc func(scope *TransactionScope)
-//
-// // ToMiddleware wraps/converts a transaction to a handler func
-// // it is not recommended to be used by users because
-// // this can be a little tricky if someone doesn't know how transaction works.
-// //
-// // Note: it auto-calls the ctx.Next() so as I noted, not recommended to use if you don't know the code behind it,
-// // use the .UseTransaction and .DoneTransaction instead
-// func (pipe TransactionFunc) ToMiddleware() HandlerFunc {
-// 	return func(ctx *Context) {
-// 		ctx.BeginTransaction(pipe)
-// 		ctx.Next()
-// 	}
-// }
-//
 // non-detailed error log for transacton unexpected panic
 var errTransactionInterrupted = errors.New("Transaction Interrupted, recovery from panic:\n%s")
 

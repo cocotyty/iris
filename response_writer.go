@@ -2,13 +2,13 @@ package iris
 
 import (
 	"bufio"
-	"github.com/kataras/go-errors"
-	"github.com/kataras/go-fs"
-
-	"github.com/klauspost/compress/gzip"
 	"net"
 	"net/http"
 	"sync"
+
+	"github.com/kataras/go-errors"
+	"github.com/kataras/go-fs"
+	"github.com/klauspost/compress/gzip"
 )
 
 type gzipResponseWriter struct {
@@ -236,12 +236,6 @@ func (w *ResponseWriter) Flush() {
 	if fl, isFlusher := w.ResponseWriter.(http.Flusher); isFlusher {
 		fl.Flush()
 	}
-}
-
-// Gzip converts this response writer to a gzip writer
-// See that article for more: https://betterexplained.com/articles/how-to-optimize-your-site-with-gzip-compression/
-func (w *ResponseWriter) Gzip() {
-
 }
 
 // clone returns a clone of this response writer

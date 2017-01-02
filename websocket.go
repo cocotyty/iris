@@ -1,9 +1,10 @@
 package iris
 
 import (
-	"github.com/kataras/go-websocket"
 	"net/http"
 	"sync"
+
+	"github.com/kataras/go-websocket"
 )
 
 // conversionals

@@ -3,9 +3,6 @@ package iris_test
 
 import (
 	"fmt"
-	"github.com/gavv/httpexpect"
-	"github.com/kataras/iris"
-	"github.com/kataras/iris/httptest"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -13,6 +10,10 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/gavv/httpexpect"
+	"github.com/kataras/iris"
+	"github.com/kataras/iris/httptest"
 )
 
 const (

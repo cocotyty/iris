@@ -2,10 +2,11 @@ package httptest
 
 import (
 	"crypto/tls"
-	"github.com/gavv/httpexpect"
-	"github.com/kataras/iris"
 	"net/http"
 	"testing"
+
+	"github.com/gavv/httpexpect"
+	"github.com/kataras/iris"
 )
 
 type (
