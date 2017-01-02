@@ -49,10 +49,12 @@ Feature Overview
 -----------
 
 - Focus on high performance
+- HTTP/2 support
+- Compatible with all net/http handlers
 - Automatically install and serve certificates from https://letsencrypt.org
 - Robust routing and middleware ecosystem
 - Build RESTful APIs
-- Request-Scoped Transactions
+- Context Scoped Transactions
 - Group API's and subdomains with wildcard support
 - Body binding for JSON, XML, Forms, can be extended to use your own custom binders
 - More than 50 handy functions to send HTTP responses
@@ -80,13 +82,13 @@ Feature Overview
  - Non WWW to WWW
  - WWW to non WWW
 - Highly scalable rich content render (Markdown, JSON, JSONP, XML...)
-- Websocket-only API similar to socket.io  
+- Websocket API similar to socket.io
 - Hot Reload on source code changes
 - Typescript integration + Web IDE
 - Checks for updates at startup
 - Highly customizable
 - Feels like you used iris forever, thanks to its Fluent API
-- And many others...
+- And more...
 
 Quick Start
 -----------
@@ -127,7 +129,7 @@ func main(){
 
   })
 
-  iris.Listen("localhost:5700")
+  iris.Listen("localhost:5900")
 }
 
 ```
@@ -647,7 +649,7 @@ func main() {
     iris.Static("/js", "./static/js", 1)
 
     iris.Get("/", func(ctx *iris.Context) {
-        ctx.Render("client.html", clientPage{"Client Page", ctx.HostString()})
+        ctx.Render("client.html", clientPage{"Client Page", ctx.Host()})
     })
 
     // the path at which the websocket client should register itself to
@@ -831,7 +833,7 @@ Versioning
 
 Current: **v6.0.0**
 
-Stable: **[v5/fasthttp LTS](https://github.com/kataras/iris/tree/5.0.0)**
+Stable: **[v5/fasthttp](https://github.com/kataras/iris/tree/5.0.0)**
 
 
 Iris is a **Community-Driven** Project, waiting for your suggestions and [feature requests](https://github.com/kataras/iris/issues?utf8=%E2%9C%93&q=label%3A%22feature%20request%22)!
@@ -851,7 +853,6 @@ Iris is the work of hundreds of the community's [feature requests](https://githu
 
 If you are interested in contributing to the Iris project, please see the document [CONTRIBUTING](https://github.com/kataras/iris/blob/master/.github/CONTRIBUTING.md).
 
-##### Note that I do not accept pull requests and that I use the issue tracker for bug reports and proposals only. Please ask questions on the [https://kataras.rocket.chat/channel/iris][Chat] or [http://stackoverflow.com/](http://stackoverflow.com).
 
 Depends on:
 

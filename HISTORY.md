@@ -3,10 +3,13 @@
 **How to upgrade**: remove your `$GOPATH/src/github.com/kataras` folder, open your command-line and execute this command: `go get -u github.com/kataras/iris/iris`.
 
 
-## v5/fasthttp -> 6.0.0/nethttp
+## v5/fasthttp -> 6.0.0
 
-As I promised to the community and a lot others, HTTP/2 support on iris is happening, I tried to zero the needed changes you will have
-to make on your app if you used iris before. If you don't find something you used to use come here and check that conversional list:
+As I [promised to the community](https://github.com/kataras/iris/issues/565) and a lot others, HTTP/2 support on Iris is happening!
+
+I tried to minimize the side affects.
+
+If you don't find something you used to use come here and check that conversional list:
 
 - `context.Response.BodyWriter() io.Writer` -> `context.ResponseWriter` is a http.ResponseWriter(and io.Writer) now.
 
@@ -21,6 +24,9 @@ to make on your app if you used iris before. If you don't find something you use
 - `context.HostString()` -> `context.Host()`.
 
 - `iris.Config.DisablePathEscape` was removed because now we have two methods to get a parameter `context.Param/ParamDecoded`.
+
+
+- All net/http middleware/handlers are **COMPATIBLE WITH IRIS NOW**, read more there](https://github.com/iris-contrib/middleware/blob/master/README.md#can-i-use-standard-nethttp-handler-with-iris).
 
 
 **Static methods changes**
