@@ -8,6 +8,9 @@
 As I promised to the community and a lot others, HTTP/2 support on iris is happening, I tried to zero the needed changes you will have
 to make on your app if you used iris before. If you don't find something you used to use come here and check that conversional list:
 
+- `context.Response.BodyWriter() io.Writer` -> `context.ResponseWriter` is a http.ResponseWriter(and io.Writer) now.
+
+- `context.RequestCtx` removed and replaced by `context.ResponseWriter (*iris.ResponseWriter -> http.ResponseWriter)` and `context.Request (*http.Request)`
 
 - `context.Write(string, ...string)` -> `context.Writef(string, ...string)` | Write now has this form: Write([]byte) (int,error). All other write methods didn't changed.
 
@@ -32,7 +35,18 @@ to make on your app if you used iris before. If you don't find something you use
 - `iris.StaticFS` -> removed and joined into the new `iris.StaticWeb`.
 
 
-> NOTE: THIS IS NOT THE COMPLETE LIST YET, I have to fill some static files helpers before pushing the new version.
+
+**More on Transictions vol 4**:
+
+- Add support for custom `transactions scopes`, two scopes already implemented: `iris.TransientTransactionScope(default) and iris.RequestTransactionScope `
+
+- `ctx.BeginTransaction(pipe func(*iris.TransactionScope))` -> `ctx.BeginTransaction(pipe func(*iris.Transaction))`
+
+- [from](https://github.com/iris-contrib/examples/blob/5.0.0/transactions/main.go) -> [to](https://github.com/iris-contrib/examples/blob/master/transactions/main.go). Further research `context_test.go:TestTransactions` and https://www.codeproject.com/Articles/690136/All-About-TransactionScope (for .NET C#, I got the idea from there, it's a unique(golang web) feature so please read this before use transactions inside iris)
+
+
+[Examples](https://github.com/iris-contrib/examples/tree/master), [middleware](https://github.com/iris-contrib/middleware/tree/master) & [plugins](https://github.com/iris-contrib/plugin) were been refactored for this new (net/http2 compatible) release.
+
 
 ## 5.1.1 -> 5.1.3
 - **More on Transactions vol 3**: Recovery from any (unexpected error) panics inside `context.BeginTransaction` without loud, continue the execution as expected. Next version will have a little cleanup if I see that the transactions code is going very large or hard to understand the flow*

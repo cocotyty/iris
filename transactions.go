@@ -69,7 +69,7 @@ func (t *Transaction) SetScope(scope TransactionScope) {
 // rollback and send an error when the error is not empty.
 // The next steps depends on its Scope.
 //
-// The error can be a type of ErrWithStatus, create using the iris.NewErrWithStatus().
+// The error can be a type of NewTransactionErrResult()
 func (t *Transaction) Complete(err error) {
 	maybeErr := TransactionErrResult{}
 

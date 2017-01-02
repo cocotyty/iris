@@ -220,21 +220,28 @@ func ToNativeHandler(station *Framework, h Handler) http.Handler {
 	})
 }
 
-// ToHandler converts an http.Handler to iris.Handler(Func)
-func ToHandler(h http.Handler) HandlerFunc {
-	return func(ctx *Context) {
-		h.ServeHTTP(ctx.ResponseWriter, ctx.Request)
-	}
-}
+// ToHandler converts an http.Handler/HandlerFunc to iris.Handler(Func)
+func ToHandler(handler interface{}) HandlerFunc {
 
-/* no, because on chain this will break the temp values, better to add a different function for this:
-// Serve implements the Handler, the http.Handler version of it,
-// in order to be automatically compatible without any user code
-func (h HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := AcquireCtx(w, r) // acquire and release the context from the default context pools, that's totally safe.
-	h.Serve(ctx)
-	ReleaseCtx(ctx)
-}*/
+	//this is not the best way to do it, but I dont have any options right now.
+	switch handler.(type) {
+	case HandlerFunc:
+		//it's already an iris handler
+		return handler.(HandlerFunc)
+	case http.Handler:
+		//it's http.Handler
+		h := handler.(http.Handler)
+		return func(ctx *Context) {
+			h.ServeHTTP(ctx.ResponseWriter, ctx.Request)
+		}
+	case func(http.ResponseWriter, *http.Request):
+		return ToHandler(http.HandlerFunc(handler.(func(http.ResponseWriter, *http.Request))))
+		//for func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc): READ iris-conrib/middleware/README.md for details
+	default:
+		panic(errHandler.Format(handler, handler))
+	}
+
+}
 
 // convertToHandlers just make []HandlerFunc to []Handler, although HandlerFunc and Handler are the same
 // we need this on some cases we explicit want a interface Handler, it is useless for users.
